@@ -24,6 +24,8 @@ export interface RunTournamentOptions {
   bundlePath: string;
   seed?: number;
   thinkMs?: number;
+  /** Max matches run in parallel; forwarded to `run-tournament --concurrency`. Capped low on memory-constrained laptops. */
+  concurrency?: number;
 }
 
 export interface EngineCli {
@@ -31,11 +33,11 @@ export interface EngineCli {
   runTournament(opts: RunTournamentOptions): Promise<void>;
 }
 
-function runCli(bin: string, args: string[], cwd: string): Promise<void> {
+function runCli(bin: string, args: string[], cwd: string): Promise<number> {
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [bin, ...args], { cwd, stdio: 'inherit' });
     child.on('error', reject);
-    child.on('close', (code) => (code === 0 ? resolve() : reject(new Error(`c4 ${args.join(' ')} exited ${code}`))));
+    child.on('close', (code) => resolve(code ?? 1));
   });
 }
 
@@ -51,6 +53,15 @@ export class RealEngineCli implements EngineCli {
   ) {}
 
   async freeze(opts: FreezeOptions): Promise<void> {
+    // `c4 freeze` exits 1 when any individual team's commit can't be
+    // resolved (e.g. our checkout-fail-team sample deliberately points at a
+    // repo that doesn't exist) -- that's by design per EVENT_PLAN.md
+    // ("teams whose build fails stay in and forfeit"): the lock file is
+    // still written with a `commit: null` entry for that team, and
+    // downstream `run-tournament` turns that into a checkout_failed match
+    // forfeit for just that team, not a run-wide failure. So a nonzero exit
+    // here is informational, not fatal -- only a thrown spawn error
+    // (missing binary, etc) should abort the pipeline.
     await runCli(this.cliBin, ['freeze', '--roster', opts.rosterPath, '--output', opts.lockPath], this.cwd);
   }
 
@@ -68,6 +79,10 @@ export class RealEngineCli implements EngineCli {
     ];
     if (opts.seed !== undefined) args.push('--seed', String(opts.seed));
     if (opts.thinkMs !== undefined) args.push('--think-ms', String(opts.thinkMs));
-    await runCli(this.cliBin, args, this.cwd);
+    if (opts.concurrency !== undefined) args.push('--concurrency', String(opts.concurrency));
+    const code = await runCli(this.cliBin, args, this.cwd);
+    if (code !== 0) {
+      throw new Error(`c4 ${args.join(' ')} exited ${code}`);
+    }
   }
 }

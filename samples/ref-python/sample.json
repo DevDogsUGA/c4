@@ -1,6 +1,8 @@
 {
-  "name": "Reference (Python)",
+  "name": "Reference Python",
   "template": "python",
+  "members": ["Reference Bot"],
   "expect": { "kind": "normal" },
+  "strength": 5,
   "conformance": true
 }

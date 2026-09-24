@@ -83,6 +83,80 @@ describe('checkExpectations', () => {
     expect(check.ok).toBe(true);
   });
 
+  it('passes a game_forfeit expectation from outcome alone (the real engine never populates clock_events with a forfeit entry -- see game-runner.ts playGame)', () => {
+    const m: MatchRecord = {
+      match_id: 'm1',
+      phase: 'roundrobin',
+      teams: [team('Greedy'), team('NeverResponds')],
+      games: [
+        {
+          game_number: 1,
+          first_player: 1,
+          first_player_team: 1,
+          coin_flip: true,
+          moves: [],
+          clock_events: [],
+          outcome: { type: 'forfeit', winner: 1, forfeited_player: 2, reason: 'clock_expired' },
+        },
+      ],
+      result: { winner_team: 1, games_won: [1, 0], reason: 'played' },
+    };
+    // first_player_team is 1 (NeverResponds), so NeverResponds is player 1
+    // and Greedy (slot 0) is player 2 -- the forfeited player. Both come
+    // straight from outcome; clock_events is empty, matching production.
+    const [check] = checkExpectations([sample('Greedy', 'game_forfeit', 'clock_expired')], bundle([m]));
+    expect(check.ok).toBe(true);
+  });
+
+  it("maps team slot to in-game player number per-game (first_player_team flips), not a fixed slot 0 -> player 1 assumption", () => {
+    // Team is slot 1. Game 1: first_player_team is 0, so slot 1 is player 2,
+    // and that's who forfeits -- must be detected.
+    const m: MatchRecord = {
+      match_id: 'm1',
+      phase: 'roundrobin',
+      teams: [team('Greedy'), team('NeverResponds')],
+      games: [
+        {
+          game_number: 1,
+          first_player: 1,
+          first_player_team: 0,
+          coin_flip: true,
+          moves: [],
+          clock_events: [],
+          outcome: { type: 'forfeit', winner: 1, forfeited_player: 2, reason: 'clock_expired' },
+        },
+      ],
+      result: { winner_team: 0, games_won: [1, 0], reason: 'played' },
+    };
+    const [check] = checkExpectations([sample('NeverResponds', 'game_forfeit', 'clock_expired')], bundle([m]));
+    expect(check.ok).toBe(true);
+  });
+
+  it('does not false-positive a restart for the opposing team when player numbers flip mid-match', () => {
+    // CrashOnceRecover is team slot 0. Game 1: first_player_team is 1, so
+    // slot 0 is player 2 -- a restart recorded for player 1 belongs to the
+    // OTHER team (slot 1) and must not count for slot 0.
+    const m: MatchRecord = {
+      match_id: 'm1',
+      phase: 'roundrobin',
+      teams: [team('CrashOnceRecover'), team('Greedy')],
+      games: [
+        {
+          game_number: 1,
+          first_player: 1,
+          first_player_team: 1,
+          coin_flip: true,
+          moves: [],
+          clock_events: [{ type: 'restart', player: 1, billed_ms: 50, at_move: 0 }],
+          outcome: { type: 'four_in_a_row', winner: 1 },
+        },
+      ],
+      result: { winner_team: 1, games_won: [0, 1], reason: 'played' },
+    };
+    const [check] = checkExpectations([sample('CrashOnceRecover', 'restarts')], bundle([m]));
+    expect(check.ok).toBe(false);
+  });
+
   it('detects a double forfeit for coverage', () => {
     const m: MatchRecord = {
       match_id: 'm1',

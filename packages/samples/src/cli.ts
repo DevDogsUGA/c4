@@ -26,6 +26,7 @@ function addCommonOptions(cmd: Command): Command {
     .option('--teams <n>', 'duplicate samples to reach N teams', (v) => Number(v))
     .option('--seed <n>', 'engine RNG seed', (v) => Number(v))
     .option('--think-ms <n>', 'per-player, per-game think budget in ms', (v) => Number(v), 5000)
+    .option('--concurrency <n>', 'max matches run in parallel (forwarded to the engine)', (v) => Number(v))
     .option('--engine-cli <path>', 'path to the match-engine CLI bin', path.join(repoRoot, 'apps/match-engine/dist/cli.js'));
 }
 
@@ -46,6 +47,7 @@ async function runAction(opts: Record<string, unknown>): Promise<void> {
     teams: opts.teams as number | undefined,
     seed: opts.seed as number | undefined,
     thinkMs: opts.thinkMs as number,
+    concurrency: opts.concurrency as number | undefined,
   });
 
   if (!result.ok) {
