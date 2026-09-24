@@ -1,0 +1,19 @@
+# Deletes every Linode carrying TAG once DEADLINE passes. Linode has no
+# spend cap and G8 Dedicated plans have no monthly price cap, and a
+# powered-off Linode still bills, so deletion is the only way to stop costs.
+#
+# Extend the deadline:  wrangler deploy --var DEADLINE:2026-09-25T04:00:00Z
+# Secrets: LINODE_TOKEN (linodes:read_write only), DISCORD_WEBHOOK_URL, RUN_TOKEN
+name = "c4-reaper"
+main = "src/index.ts"
+compatibility_date = "2024-09-19"
+account_id = "61d185ff419ef7bd5bd4b3d314081a49"
+workers_dev = true
+
+[triggers]
+crons = ["*/5 * * * *"]
+
+[vars]
+TAG = "c4"
+# 10:00 PM EDT, 2026-09-24.
+DEADLINE = "2026-09-25T02:00:00Z"

@@ -1,0 +1,16 @@
+{
+  "name": "@acm-uga/c4-reaper",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Dead-man's switch: deletes tagged Linodes after a deadline so the arena can't bill forever",
+  "type": "module",
+  "scripts": {
+    "build": "tsc --noEmit",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240909.0",
+    "typescript": "^5.6.0",
+    "wrangler": "^4.133.0"
+  }
+}
