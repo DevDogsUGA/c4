@@ -17,8 +17,13 @@ export const PRACTICE_BOTS: readonly PracticeBot[] = [
   { id: 'minimax', label: 'Minimax', path: 'minimax' },
 ];
 
-/** Local `wrangler dev` default for packages/practice-bots (see its wrangler.toml). */
-export const DEFAULT_PRACTICE_BOTS_URL = 'http://localhost:8787';
+/**
+ * The deployed practice-bots Worker. Override at build time with
+ * VITE_PRACTICE_BOTS_URL (e.g. http://localhost:8787 for `wrangler dev`).
+ */
+export const DEFAULT_PRACTICE_BOTS_URL: string =
+  (import.meta as { env?: Record<string, string | undefined> }).env?.VITE_PRACTICE_BOTS_URL ??
+  'https://c4-practice-bots.devdogs.workers.dev';
 
 /** Builds the base URL to POST /move against for a given practice bot. */
 export function practiceBotUrl(baseUrl: string, bot: PracticeBot): string {
