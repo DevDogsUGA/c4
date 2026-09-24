@@ -223,11 +223,21 @@ app.post('/api/results', async (c) => {
     return c.json({ error: 'invalid JSON' }, 400);
   }
 
-  if (!payload.repo_url || !payload.commit || !payload.status || !payload.stage || !payload.at) {
+  if (!payload.repo_url || !payload.commit || !payload.status || !payload.at) {
     return c.json({ error: 'missing required fields' }, 400);
   }
   if (!['building', 'passed', 'failed'].includes(payload.status)) {
     return c.json({ error: 'invalid status' }, 400);
+  }
+  if (payload.status === 'building') {
+    // arena-watch posts `building` the moment it sees a new commit, before
+    // checkout/build/health/smoke have run -- there's no real stage yet.
+    // `stage` is still NOT NULL in the `results`/`latest_results` tables (no
+    // migration for this tonight), so pin a placeholder rather than reject
+    // an otherwise-valid in-progress report.
+    payload.stage = payload.stage ?? 'checkout';
+  } else if (!payload.stage) {
+    return c.json({ error: 'missing required fields' }, 400);
   }
   if (!['checkout', 'build', 'health', 'smoke'].includes(payload.stage)) {
     return c.json({ error: 'invalid stage' }, 400);

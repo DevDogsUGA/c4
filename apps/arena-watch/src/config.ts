@@ -8,6 +8,12 @@ export interface WatchConfig {
   resultsToken: string;
   backupRosterUrl: string | undefined;
   discordWebhookUrl: string | undefined;
+  /** Test-only override: read the roster from a local JSON file instead of
+   * hitting WORKER_URL/BACKUP_ROSTER_URL. Never set in production -- lets a
+   * dry run exercise the full tick pipeline (ls-remote, validate, results,
+   * Discord, state) against a synthetic roster without touching the real
+   * registry. See ops/linode/README.md's arena-watch dry-run section. */
+  rosterFile: string | undefined;
   engineBin: string;
   stateFile: string;
   pollIntervalMs: number;
@@ -41,6 +47,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): WatchConfig {
     resultsToken: enabled ? required(env, 'RESULTS_TOKEN') : (env.RESULTS_TOKEN ?? ''),
     backupRosterUrl: env.BACKUP_ROSTER_URL,
     discordWebhookUrl: env.DISCORD_WEBHOOK_URL,
+    rosterFile: env.C4_WATCH_ROSTER_FILE,
     engineBin: env.C4_ENGINE_BIN ?? '/opt/c4/apps/match-engine/dist/cli.js',
     stateFile: env.C4_WATCH_STATE_FILE ?? '/var/lib/c4/arena-watch-state.json',
     pollIntervalMs: int(env, 'C4_WATCH_POLL_INTERVAL_MS', 60_000),

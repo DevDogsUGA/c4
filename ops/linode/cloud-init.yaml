@@ -138,13 +138,30 @@ write_files:
       [Install]
       WantedBy=multi-user.target
 
-  # --- Let c4 restart/inspect only its own service, nothing else. Needed so
-  # deploy.sh (which runs as c4, the hotfix path) can restart c4-watch
-  # without full sudo.
+  # --- Symlinks ops/linode/bin/* onto PATH and reloads systemd. Root-owned,
+  # so c4 (deploy.sh) can only run this exact script, not arbitrary `ln`/
+  # `systemctl` commands. Re-run any time the repo is (re)cloned -- see
+  # deploy.sh, which calls this on every hotfix so a box that got its
+  # symlinks installed late (or never, e.g. cloud-init ran before the clone
+  # landed) self-heals.
+  - path: /usr/local/sbin/c4-install-bin
+    permissions: '0755'
+    content: |
+      #!/usr/bin/env bash
+      set -euo pipefail
+      for f in /opt/c4/c4/ops/linode/bin/*; do
+        ln -sf "$f" "/usr/local/bin/$(basename "$f")"
+      done
+      systemctl daemon-reload
+
+  # --- Let c4 restart/inspect only its own service, and (re)install the
+  # ops/linode/bin/* symlinks via the narrowly-scoped helper above. Needed so
+  # deploy.sh (which runs as c4, the hotfix path) can do both without full
+  # sudo.
   - path: /etc/sudoers.d/c4-watch
     permissions: '0440'
     content: |
-      c4 ALL=(root) NOPASSWD: /usr/bin/systemctl restart c4-watch.service, /usr/bin/systemctl status c4-watch.service, /usr/bin/systemctl is-active c4-watch.service
+      c4 ALL=(root) NOPASSWD: /usr/bin/systemctl restart c4-watch.service, /usr/bin/systemctl status c4-watch.service, /usr/bin/systemctl is-active c4-watch.service, /usr/local/sbin/c4-install-bin
 
   - path: /etc/systemd/system/c4-watch.service
     permissions: '0644'
@@ -263,6 +280,12 @@ runcmd:
       ; do
         docker pull "$img" || echo "WARN: failed to pull $img" >&2
       done
+
+  # --- Install ops/linode/bin/* onto PATH now, if the clone succeeded above
+  # (if C4_REPO_TOKEN wasn't set yet, this is a no-op glob and deploy.sh's
+  # own call to c4-install-bin will pick it up once the operator clones and
+  # runs the hotfix path -- see README troubleshooting). ---
+  - '[ -d /opt/c4/c4/ops/linode/bin ] && /usr/local/sbin/c4-install-bin || echo "c4-install-bin: /opt/c4/c4 not cloned yet, skipping (deploy.sh will retry)" >&2'
 
   # --- systemd units ---
   - systemctl daemon-reload

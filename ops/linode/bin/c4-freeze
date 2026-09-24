@@ -3,12 +3,16 @@
 # current commit into a timestamped lock file. Keeps history -- never
 # overwrites a previous freeze, so you can always see what was frozen when.
 #
-# Usage: c4-freeze
+# Usage: c4-freeze [-- c4-roster args...]
+#   e.g. c4-freeze --source csv /path/to/test-roster.csv   # dry run
 # Output: /var/lib/c4/locks/lock-<UTC timestamp>.json
 #         /var/lib/c4/locks/latest.json -> symlink to the newest one
 set -euo pipefail
 
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# Any args are forwarded verbatim to c4-roster (see its usage), so a dry run
+# can pin the roster instead of refreshing from the live Worker/backup.
+ROSTER_ARGS=("$@")
 
 ENV_FILE=/etc/c4/env
 if [ -r "$ENV_FILE" ]; then
@@ -27,7 +31,7 @@ ROSTER_JSON="$STATE_DIR/roster.json"
 
 echo "== c4-freeze: $(date -u +%FT%TZ) =="
 
-"$HERE/c4-roster"
+"$HERE/c4-roster" "${ROSTER_ARGS[@]}"
 
 if [ ! -s "$ROSTER_JSON" ]; then
   echo "FATAL: no roster available at $ROSTER_JSON" >&2
@@ -38,7 +42,19 @@ STAMP=$(date -u +%Y%m%dT%H%M%SZ)
 LOCK_FILE="$LOCK_DIR/lock-$STAMP.json"
 
 echo "-- freezing $(jq '.teams | length' "$ROSTER_JSON") teams to $LOCK_FILE --"
-node "$C4_ENGINE_BIN" freeze --roster "$ROSTER_JSON" --output "$LOCK_FILE"
+# `c4 freeze` exits non-zero when one or more teams couldn't be resolved
+# (e.g. a repo that's down/deleted) -- that's real, actionable information
+# the operator needs, not a reason to abort before writing latest.json. The
+# lock file itself is still written whenever freeze ran at all (partial
+# freezes are recorded, not silently dropped), so only bail here if freeze
+# crashed hard enough that no lock file exists.
+freeze_exit=0
+node "$C4_ENGINE_BIN" freeze --roster "$ROSTER_JSON" --output "$LOCK_FILE" || freeze_exit=$?
+
+if [ ! -s "$LOCK_FILE" ]; then
+  echo "FATAL: c4 freeze exited $freeze_exit and wrote no lock file at $LOCK_FILE" >&2
+  exit 1
+fi
 
 ln -sfn "$(basename "$LOCK_FILE")" "$LOCK_DIR/latest.json"
 
@@ -47,3 +63,9 @@ echo "latest.json -> $(readlink "$LOCK_DIR/latest.json")"
 echo
 echo "Lock history:"
 ls -1 "$LOCK_DIR"/lock-*.json 2>/dev/null | sort
+
+if [ "$freeze_exit" -ne 0 ]; then
+  echo
+  echo "WARN: freeze completed with unresolved team(s) (see above) -- lock file was still written." >&2
+  exit "$freeze_exit"
+fi

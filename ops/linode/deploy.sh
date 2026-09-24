@@ -47,6 +47,18 @@ pnpm install --frozen-lockfile
 echo "-- pnpm build --"
 pnpm build
 
+echo "-- (re)installing ops/linode/bin/* onto PATH --"
+# Idempotent: needed any time the box's /usr/local/bin symlinks are missing
+# or stale, not just on first provision -- e.g. if cloud-init's runcmd ran
+# before the repo was cloned (see README troubleshooting), the symlink step
+# never ran at all. c4 has narrowly-scoped passwordless sudo for exactly this
+# helper script (see /etc/sudoers.d/c4-watch and cloud-init.yaml).
+if command -v sudo >/dev/null 2>&1 && sudo -n /usr/local/sbin/c4-install-bin 2>/dev/null; then
+  :
+else
+  echo "WARN: could not run c4-install-bin (need passwordless sudo, or run as root: /usr/local/sbin/c4-install-bin, or fall back to: for f in $C4_DIR/ops/linode/bin/*; do ln -sf \"\$f\" \"/usr/local/bin/\$(basename \"\$f\")\"; done && systemctl daemon-reload)" >&2
+fi
+
 echo "-- restarting c4-watch.service --"
 if command -v sudo >/dev/null 2>&1 && sudo -n systemctl restart c4-watch.service 2>/dev/null; then
   :

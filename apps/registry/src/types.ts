@@ -61,7 +61,10 @@ export interface ResultsPayload {
   repo_url: string;
   commit: string;
   status: ResultStatus;
-  stage: ResultStage;
+  // Optional for status: 'building' -- arena-watch posts that the moment it
+  // sees a new commit, before checkout/build/health/smoke have run at all.
+  // Required (and validated) for 'passed'/'failed'.
+  stage?: ResultStage;
   detail?: string;
   log_tail?: string;
   at: string;

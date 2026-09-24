@@ -1,9 +1,22 @@
+import { readFile } from 'node:fs/promises';
 import { loadConfig } from './config.js';
 import { lsRemoteHead } from './git.js';
 import { log } from './log.js';
+import type { fetchRoster } from './roster.js';
 import { nextBackoffMs, runTick } from './scheduler.js';
 import { loadState, saveState, type WatchState } from './state.js';
+import type { Roster } from './types.js';
 import { makeEngineValidate } from './validate.js';
+
+/** Test-only: reads the roster straight from disk instead of the worker/
+ * backup HTTP sources, when C4_WATCH_ROSTER_FILE is set. See config.ts. */
+function makeFileRosterFn(rosterFile: string): typeof fetchRoster {
+  return async () => {
+    const text = await readFile(rosterFile, 'utf8');
+    const roster = JSON.parse(text) as Roster;
+    return { roster, source: 'worker' };
+  };
+}
 
 async function sleep(ms: number): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, ms));
@@ -21,7 +34,14 @@ async function main(): Promise<void> {
     workerUrl: config.workerUrl,
     pollIntervalMs: config.pollIntervalMs,
     concurrency: config.concurrency,
+    ...(config.rosterFile ? { rosterFile: config.rosterFile } : {}),
   });
+
+  if (config.rosterFile) {
+    log.warn('C4_WATCH_ROSTER_FILE is set -- reading roster from disk, NOT the registry. This must never be set in production.', {
+      rosterFile: config.rosterFile,
+    });
+  }
 
   const state: WatchState = await loadState(config.stateFile);
   const inFlight = new Set<string>();
@@ -29,6 +49,7 @@ async function main(): Promise<void> {
     engineBin: config.engineBin,
     timeoutMs: config.validateTimeoutMs,
   });
+  const fetchRosterFn = config.rosterFile ? makeFileRosterFn(config.rosterFile) : undefined;
 
   let consecutiveFailures = 0;
   let shuttingDown = false;
@@ -54,6 +75,7 @@ async function main(): Promise<void> {
         inFlight,
         runValidate,
         lsRemote: lsRemoteHead,
+        ...(fetchRosterFn ? { fetchRosterFn } : {}),
       });
 
       const changed = outcomes.filter((o) => o.changed);

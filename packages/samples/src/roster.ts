@@ -39,8 +39,16 @@ export function buildRoster(materialized: MaterializedSample[], teamsWanted?: nu
     updated_at: new Date().toISOString(),
   }));
 
-  if (!teamsWanted || teamsWanted <= base.length) {
+  if (!teamsWanted) {
     return { teams: base };
+  }
+
+  if (teamsWanted <= base.length) {
+    // More materialized samples than requested (e.g. the sample set grew
+    // past the dress-rehearsal team cap) -- trim down to exactly N rather
+    // than silently exceeding the cap the caller asked for (the engine
+    // itself rejects rosters over its max-teams invariant).
+    return { teams: base.slice(0, teamsWanted) };
   }
 
   const teams: RosterTeam[] = [];

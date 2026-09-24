@@ -63,8 +63,21 @@ interface Args {
   templateDir: string;
 }
 
+/**
+ * Default templates dir: $C4_HACKATHON_DIR/templates if set (the arena box
+ * clones c4-hackathon to /opt/c4/c4-hackathon -- see ops/linode/README.md),
+ * else the sibling-checkout convention for local dev (c4 and c4-hackathon
+ * checked out side by side). Override with --template-dir either way.
+ */
+function defaultTemplateDir(): string {
+  if (process.env.C4_HACKATHON_DIR) {
+    return path.join(process.env.C4_HACKATHON_DIR, 'templates');
+  }
+  return path.resolve(HERE, '../../../../../c4-hackathon/templates');
+}
+
 function parseArgs(argv: string[]): Args {
-  const args: Args = { templateDir: '/home/sloan/code/acm-uga/c4-hackathon/templates' };
+  const args: Args = { templateDir: defaultTemplateDir() };
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--lang') args.lang = argv[++i];
     else if (argv[i] === '--template-dir') args.templateDir = argv[++i];

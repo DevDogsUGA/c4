@@ -57,6 +57,10 @@ fetch_worker() {
     "${WORKER_URL%/}/api/roster"
 }
 
+backup_configured() {
+  [ -n "${BACKUP_ROSTER_URL:-}" ]
+}
+
 fetch_backup() {
   : "${BACKUP_ROSTER_URL:?BACKUP_ROSTER_URL must be set in /etc/c4/env}"
   local sep="?"
@@ -96,15 +100,31 @@ case "$source_mode" in
     echo "Saved roster from worker."
     ;;
   backup)
+    if ! backup_configured; then
+      echo "FATAL: --source backup requested but BACKUP_ROSTER_URL is not configured in /etc/c4/env" >&2
+      exit 1
+    fi
     fetch_backup > "$ROSTER_JSON"
     echo "Saved roster from backup."
     ;;
   diff)
     worker_json=$(fetch_worker) || { echo "WARN: worker roster fetch failed" >&2; worker_json=""; }
-    backup_json=$(fetch_backup) || { echo "WARN: backup roster fetch failed" >&2; backup_json=""; }
+    if backup_configured; then
+      backup_json=$(fetch_backup) || { echo "WARN: backup roster fetch failed" >&2; backup_json=""; }
+    else
+      # BACKUP_ROSTER_URL intentionally empty (UGA blocks anonymous Apps
+      # Script web apps -- the CSV export is the real fallback, see README
+      # §5). No backup source configured is not an error.
+      echo "INFO: BACKUP_ROSTER_URL not configured, skipping backup cross-check (worker-only)." >&2
+      backup_json=""
+    fi
 
     if [ -z "$worker_json" ] && [ -z "$backup_json" ]; then
-      echo "FATAL: both worker and backup roster fetches failed" >&2
+      if backup_configured; then
+        echo "FATAL: both worker and backup roster fetches failed" >&2
+      else
+        echo "FATAL: worker roster fetch failed and no backup is configured" >&2
+      fi
       exit 1
     fi
 
@@ -125,7 +145,11 @@ case "$source_mode" in
       echo "Saved roster from worker (primary); diffed against backup above."
     elif [ -n "$worker_json" ]; then
       echo "$worker_json" > "$ROSTER_JSON"
-      echo "WARN: backup unavailable, saved roster from worker only." >&2
+      if backup_configured; then
+        echo "WARN: backup unavailable, saved roster from worker only." >&2
+      else
+        echo "Saved roster from worker (no backup configured, worker-only)."
+      fi
     else
       echo "$backup_json" > "$ROSTER_JSON"
       echo "WARN: worker unavailable, saved roster from backup only." >&2

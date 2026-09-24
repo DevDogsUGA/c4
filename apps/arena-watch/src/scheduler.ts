@@ -79,7 +79,12 @@ export async function processTeam(team: RosterTeam, ctx: TickContext): Promise<T
     const at = () => new Date().toISOString();
 
     await postResultFn(
-      { repo_url: team.repo_url, commit: head, status: 'building', at: at() },
+      // `stage` doesn't really apply yet (nothing has run) -- 'checkout' is
+      // the stage about to start. Sent explicitly (not omitted) so this
+      // still validates against Worker deployments that haven't picked up
+      // the "stage optional for building" relaxation yet (registry
+      // src/index.ts `/api/results`).
+      { repo_url: team.repo_url, commit: head, status: 'building', stage: 'checkout', at: at() },
       { workerUrl: ctx.workerUrl, resultsToken: ctx.resultsToken, ...(ctx.fetchFn ? { fetchFn: ctx.fetchFn } : {}) },
     );
     await postDiscordFn(`${statusEmoji('building')} **${team.team_name}** building \`${head.slice(0, 7)}\``, {

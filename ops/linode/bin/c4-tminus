@@ -3,12 +3,18 @@
 # (checkout -> build -> health -> smoke), post each result to the registry,
 # print a summary table, and post a summary to Discord.
 #
-# Usage: c4-tminus [label]
+# Usage: c4-tminus [label] [-- c4-roster args...]
 #   e.g. c4-tminus "T-30"
+#        c4-tminus "T-TEST" --source csv /path/to/test-roster.csv   # dry run
 set -euo pipefail
 
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 LABEL=${1:-"validation run"}
+[ $# -gt 0 ] && shift
+# Anything left after the label is forwarded verbatim to c4-roster, so a dry
+# run can pin the roster (e.g. `--source csv <file>`) instead of refreshing
+# from the live Worker/backup.
+ROSTER_ARGS=("$@")
 
 ENV_FILE=/etc/c4/env
 if [ -r "$ENV_FILE" ]; then
@@ -28,7 +34,7 @@ ROSTER_JSON="$STATE_DIR/roster.json"
 
 echo "== c4-tminus: $LABEL ($(date -u +%FT%TZ)) =="
 
-"$HERE/c4-roster"
+"$HERE/c4-roster" "${ROSTER_ARGS[@]}"
 
 if [ ! -s "$ROSTER_JSON" ]; then
   echo "FATAL: no roster available at $ROSTER_JSON" >&2
@@ -36,7 +42,16 @@ if [ ! -s "$ROSTER_JSON" ]; then
 fi
 
 echo "-- running validate --json against $(jq '.teams | length' "$ROSTER_JSON") teams --"
-RESULTS_JSON=$(node "$C4_ENGINE_BIN" validate --roster "$ROSTER_JSON" --json)
+# `c4 validate --json` exits non-zero when ANY team fails validation -- that's
+# expected and not a script error (a failing team is exactly what this run is
+# for). Capture stdout regardless of exit code; a genuinely broken invocation
+# (crash before any JSON is printed) still surfaces below when `jq` chokes on
+# empty/invalid RESULTS_JSON.
+RESULTS_JSON=$(node "$C4_ENGINE_BIN" validate --roster "$ROSTER_JSON" --json) || true
+if ! echo "$RESULTS_JSON" | jq -e . >/dev/null 2>&1; then
+  echo "FATAL: validate --json produced no parseable output (engine crashed before reporting) -- see stderr above" >&2
+  exit 1
+fi
 echo "$RESULTS_JSON" > "$STATE_DIR/validate-$(date -u +%Y%m%dT%H%M%SZ).json"
 
 pass_count=$(echo "$RESULTS_JSON" | jq '[.[] | select(.ok)] | length')
@@ -47,8 +62,13 @@ echo "-- posting each result to $WORKER_URL/api/results --"
 echo "$RESULTS_JSON" | jq -c '.[]' | while IFS= read -r row; do
   now=$(date -u +%FT%TZ)
   status=$(echo "$row" | jq -r 'if .ok then "passed" else "failed" end')
+  # `commit` is null when validate fails at the `checkout` stage (repo/branch
+  # couldn't be resolved at all) -- the Worker's `results` table has
+  # commit_sha NOT NULL, so a bare null gets rejected with a 400. Substitute
+  # a sentinel; the real failure detail (with the git error) still gets
+  # through in `detail`.
   payload=$(echo "$row" | jq -c --arg status "$status" --arg at "$now" \
-    '{repo_url, commit, status: $status, stage, detail, at: $at}')
+    '{repo_url, commit: (.commit // "unresolved"), status: $status, stage, detail, at: $at}')
   curl -fsS --max-time 15 -X POST \
     -H "Authorization: Bearer $RESULTS_TOKEN" \
     -H "Content-Type: application/json" \
