@@ -16,9 +16,13 @@ package_upgrade: false # don't risk a kernel/docker bump mid-provision; do it ma
 
 users:
   - default
+  # docker group membership is added in runcmd, after Docker creates it.
+  # SSH keys are injected at create time (ops/linode/create.sh replaces
+  # C4_SSH_AUTHORIZED_KEY below with the operator's public key).
   - name: c4
-    groups: [docker]
     shell: /bin/bash
+    ssh_authorized_keys:
+      - C4_SSH_AUTHORIZED_KEY
     sudo: null
     lock_passwd: true
 
@@ -186,6 +190,7 @@ runcmd:
   - apt-get update -y
   - apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
   - systemctl enable --now docker
+  - usermod -aG docker c4
   - systemctl daemon-reload
   - systemctl enable --now c4-hostguard.service
   - systemctl reload ssh || systemctl reload sshd || true
