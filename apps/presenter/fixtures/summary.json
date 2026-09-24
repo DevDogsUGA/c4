@@ -1,0 +1,66 @@
+{
+  "standings": [
+    {
+      "team": { "name": "Team Rocket", "repo_url": "https://github.com/example/team-rocket" },
+      "rank": 1,
+      "match_wins": 1,
+      "match_losses": 0,
+      "game_wins": 2,
+      "game_losses": 0
+    },
+    {
+      "team": { "name": "Rando Calrissian", "repo_url": "https://github.com/example/rando-calrissian" },
+      "rank": 2,
+      "match_wins": 1,
+      "match_losses": 0,
+      "game_wins": 2,
+      "game_losses": 0
+    },
+    {
+      "team": { "name": "Bit Flippers", "repo_url": "https://github.com/example/bit-flippers" },
+      "rank": 3,
+      "match_wins": 0,
+      "match_losses": 1,
+      "game_wins": 0,
+      "game_losses": 2
+    },
+    {
+      "team": { "name": "Night Owls", "repo_url": "https://github.com/example/night-owls" },
+      "rank": 4,
+      "match_wins": 0,
+      "match_losses": 1,
+      "game_wins": 0,
+      "game_losses": 2
+    }
+  ],
+  "bracket": [
+    {
+      "match_id": "sf-1",
+      "round": "Semifinal",
+      "slot": 0,
+      "team_a": { "name": "Team Rocket", "repo_url": "https://github.com/example/team-rocket" },
+      "team_b": { "name": "Night Owls", "repo_url": "https://github.com/example/night-owls" },
+      "winner": { "name": "Team Rocket", "repo_url": "https://github.com/example/team-rocket" },
+      "bye": false
+    },
+    {
+      "match_id": "sf-2",
+      "round": "Semifinal",
+      "slot": 1,
+      "team_a": { "name": "Rando Calrissian", "repo_url": "https://github.com/example/rando-calrissian" },
+      "team_b": { "name": "Bit Flippers", "repo_url": "https://github.com/example/bit-flippers" },
+      "winner": { "name": "Rando Calrissian", "repo_url": "https://github.com/example/rando-calrissian" },
+      "bye": false
+    },
+    {
+      "match_id": "final-1",
+      "round": "Final",
+      "slot": 0,
+      "team_a": { "name": "Team Rocket", "repo_url": "https://github.com/example/team-rocket" },
+      "team_b": { "name": "Rando Calrissian", "repo_url": "https://github.com/example/rando-calrissian" },
+      "winner": { "name": "Team Rocket", "repo_url": "https://github.com/example/team-rocket" },
+      "bye": false
+    }
+  ],
+  "generated_at": "2026-09-18T12:00:00.000Z"
+}

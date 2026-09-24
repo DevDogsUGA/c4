@@ -1,0 +1,125 @@
+{
+  "match_id": "rr-005",
+  "phase": "roundrobin",
+  "teams": [
+    {
+      "name": "Random Alpha",
+      "repo_url": "https://github.com/fake/random-alpha"
+    },
+    {
+      "name": "Minimax Zeta",
+      "repo_url": "https://github.com/fake/minimax-zeta"
+    }
+  ],
+  "games": [
+    {
+      "game_number": 1,
+      "first_player": 1,
+      "first_player_team": 0,
+      "coin_flip": true,
+      "moves": [
+        {
+          "player": 1,
+          "column": 5,
+          "think_ms": 28
+        },
+        {
+          "player": 2,
+          "column": 2,
+          "think_ms": 57
+        },
+        {
+          "player": 1,
+          "column": 5,
+          "think_ms": 95
+        },
+        {
+          "player": 2,
+          "column": 3,
+          "think_ms": 52
+        },
+        {
+          "player": 1,
+          "column": 7,
+          "think_ms": 79
+        },
+        {
+          "player": 2,
+          "column": 1,
+          "think_ms": 41
+        },
+        {
+          "player": 1,
+          "column": 1,
+          "think_ms": 30
+        },
+        {
+          "player": 2,
+          "column": 0,
+          "think_ms": 98
+        }
+      ],
+      "clock_events": [],
+      "outcome": {
+        "type": "four_in_a_row",
+        "winner": 2
+      }
+    },
+    {
+      "game_number": 2,
+      "first_player": 2,
+      "first_player_team": 1,
+      "coin_flip": false,
+      "moves": [
+        {
+          "player": 2,
+          "column": 0,
+          "think_ms": 43
+        },
+        {
+          "player": 1,
+          "column": 5,
+          "think_ms": 94
+        },
+        {
+          "player": 2,
+          "column": 1,
+          "think_ms": 63
+        },
+        {
+          "player": 1,
+          "column": 6,
+          "think_ms": 57
+        },
+        {
+          "player": 2,
+          "column": 2,
+          "think_ms": 49
+        },
+        {
+          "player": 1,
+          "column": 0,
+          "think_ms": 29
+        },
+        {
+          "player": 2,
+          "column": 3,
+          "think_ms": 61
+        }
+      ],
+      "clock_events": [],
+      "outcome": {
+        "type": "four_in_a_row",
+        "winner": 2
+      }
+    }
+  ],
+  "result": {
+    "winner_team": 1,
+    "games_won": [
+      0,
+      2
+    ],
+    "reason": "played"
+  }
+}

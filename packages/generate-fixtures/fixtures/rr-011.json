@@ -1,0 +1,195 @@
+{
+  "match_id": "rr-011",
+  "phase": "roundrobin",
+  "teams": [
+    {
+      "name": "Random Alpha",
+      "repo_url": "https://github.com/fake/random-alpha"
+    },
+    {
+      "name": "Hybrid Mu",
+      "repo_url": "https://github.com/fake/hybrid-mu"
+    }
+  ],
+  "games": [
+    {
+      "game_number": 1,
+      "first_player": 1,
+      "first_player_team": 0,
+      "coin_flip": true,
+      "moves": [
+        {
+          "player": 1,
+          "column": 2,
+          "think_ms": 51
+        },
+        {
+          "player": 2,
+          "column": 0,
+          "think_ms": 102
+        },
+        {
+          "player": 1,
+          "column": 3,
+          "think_ms": 83
+        },
+        {
+          "player": 2,
+          "column": 4,
+          "think_ms": 39
+        },
+        {
+          "player": 1,
+          "column": 7,
+          "think_ms": 43
+        },
+        {
+          "player": 2,
+          "column": 0,
+          "think_ms": 102
+        },
+        {
+          "player": 1,
+          "column": 2,
+          "think_ms": 77
+        },
+        {
+          "player": 2,
+          "column": 3,
+          "think_ms": 45
+        },
+        {
+          "player": 1,
+          "column": 4,
+          "think_ms": 77
+        },
+        {
+          "player": 2,
+          "column": 0,
+          "think_ms": 71
+        },
+        {
+          "player": 1,
+          "column": 0,
+          "think_ms": 29
+        },
+        {
+          "player": 2,
+          "column": 0,
+          "think_ms": 19
+        },
+        {
+          "player": 1,
+          "column": 0,
+          "think_ms": 68
+        },
+        {
+          "player": 2,
+          "column": 2,
+          "think_ms": 92
+        },
+        {
+          "player": 1,
+          "column": 7,
+          "think_ms": 44
+        },
+        {
+          "player": 2,
+          "column": 3,
+          "think_ms": 82
+        },
+        {
+          "player": 1,
+          "column": 6,
+          "think_ms": 98
+        },
+        {
+          "player": 2,
+          "column": 3,
+          "think_ms": 49
+        },
+        {
+          "player": 1,
+          "column": 3,
+          "think_ms": 45
+        },
+        {
+          "player": 2,
+          "column": 1,
+          "think_ms": 13
+        },
+        {
+          "player": 1,
+          "column": 7,
+          "think_ms": 17
+        },
+        {
+          "player": 2,
+          "column": 1,
+          "think_ms": 26
+        }
+      ],
+      "clock_events": [],
+      "outcome": {
+        "type": "four_in_a_row",
+        "winner": 2
+      }
+    },
+    {
+      "game_number": 2,
+      "first_player": 2,
+      "first_player_team": 1,
+      "coin_flip": false,
+      "moves": [
+        {
+          "player": 2,
+          "column": 0,
+          "think_ms": 31
+        },
+        {
+          "player": 1,
+          "column": 7,
+          "think_ms": 92
+        },
+        {
+          "player": 2,
+          "column": 0,
+          "think_ms": 24
+        },
+        {
+          "player": 1,
+          "column": 3,
+          "think_ms": 44
+        },
+        {
+          "player": 2,
+          "column": 0,
+          "think_ms": 96
+        },
+        {
+          "player": 1,
+          "column": 6,
+          "think_ms": 37
+        },
+        {
+          "player": 2,
+          "column": 0,
+          "think_ms": 77
+        }
+      ],
+      "clock_events": [],
+      "outcome": {
+        "type": "four_in_a_row",
+        "winner": 2
+      }
+    }
+  ],
+  "result": {
+    "winner_team": 1,
+    "games_won": [
+      0,
+      2
+    ],
+    "reason": "played"
+  }
+}

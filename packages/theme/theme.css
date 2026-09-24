@@ -1,0 +1,41 @@
+/* @connect-4/theme — shared design tokens for the presenter and testground
+ * apps. Self-hosted fonts (no CDN, event Wi-Fi is untrusted) + a Tailwind v4
+ * `@theme` block exposing the ACM @ UGA brand as color/font tokens.
+ * See SHOW_PLAN.md §1.
+ *
+ * Display font deviation: SHOW_PLAN.md §1 calls for the vendored "Psilent"
+ * pixel display face. Its license (Chequered Ink FSLA Non-Commercial)
+ * permits free personal/non-profit *use*, but §3 additionally requires any
+ * electronic-document embedding to use "a secure format that protects the
+ * Product from extraction" and to not let end-users lift glyphs for their
+ * own use. A self-hosted `@font-face` TTF/woff2 served to a browser fails
+ * that requirement (the font file is trivially downloadable/extractable by
+ * any visitor). Per the fallback instructions in SHOW_PLAN.md §1, Psilent
+ * was NOT vendored; --font-display falls back to Spline Sans at weight 700
+ * (see usage sites for uppercase treatment). */
+
+@import '@fontsource/spline-sans/400.css';
+@import '@fontsource/spline-sans/500.css';
+@import '@fontsource/spline-sans/700.css';
+@import '@fontsource/spline-sans-mono/400.css';
+@import '@fontsource/spline-sans-mono/700.css';
+
+@theme {
+  /* Neutral ramp + brand red (dark-mode, true-black background). */
+  --color-ink: #000000;
+  --color-chalk: #ffffff;
+  --color-silver: #efefef;
+  --color-steel: #b7b7b7;
+  --color-concrete: #cccccc;
+  --color-graphite: #666666;
+  --color-bulldog: #ba0c2f;
+  --color-card: #141414;
+  --color-card-edge: #2e2e2e;
+
+  /* Type system: display (hero/headlines — Psilent fallback, see note
+   * above), body (UI/paragraphs), mono (eyebrow labels, chess-clock
+   * readouts, JSON panels). */
+  --font-display: 'Spline Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-body: 'Spline Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'Spline Sans Mono', 'Cascadia Mono', 'Segoe UI Mono', Consolas, monospace;
+}

@@ -1,0 +1,397 @@
+{
+  "standings": [
+    {
+      "team": {
+        "name": "Hybrid Mu",
+        "repo_url": "https://github.com/fake/hybrid-mu"
+      },
+      "rank": 1,
+      "match_wins": 11,
+      "match_losses": 0,
+      "game_wins": 14,
+      "game_losses": 1
+    },
+    {
+      "team": {
+        "name": "Minimax Iota",
+        "repo_url": "https://github.com/fake/minimax-iota"
+      },
+      "rank": 2,
+      "match_wins": 10,
+      "match_losses": 1,
+      "game_wins": 14,
+      "game_losses": 1
+    },
+    {
+      "team": {
+        "name": "Minimax Theta",
+        "repo_url": "https://github.com/fake/minimax-theta"
+      },
+      "rank": 3,
+      "match_wins": 8,
+      "match_losses": 3,
+      "game_wins": 13,
+      "game_losses": 4
+    },
+    {
+      "team": {
+        "name": "Minimax Eta",
+        "repo_url": "https://github.com/fake/minimax-eta"
+      },
+      "rank": 4,
+      "match_wins": 8,
+      "match_losses": 3,
+      "game_wins": 14,
+      "game_losses": 0
+    },
+    {
+      "team": {
+        "name": "Minimax Zeta",
+        "repo_url": "https://github.com/fake/minimax-zeta"
+      },
+      "rank": 5,
+      "match_wins": 7,
+      "match_losses": 4,
+      "game_wins": 14,
+      "game_losses": 0
+    },
+    {
+      "team": {
+        "name": "Greedy Epsilon",
+        "repo_url": "https://github.com/fake/greedy-epsilon"
+      },
+      "rank": 6,
+      "match_wins": 5,
+      "match_losses": 6,
+      "game_wins": 10,
+      "game_losses": 13
+    },
+    {
+      "team": {
+        "name": "Greedy Delta",
+        "repo_url": "https://github.com/fake/greedy-delta"
+      },
+      "rank": 7,
+      "match_wins": 5,
+      "match_losses": 6,
+      "game_wins": 12,
+      "game_losses": 13
+    },
+    {
+      "team": {
+        "name": "Hybrid Lambda",
+        "repo_url": "https://github.com/fake/hybrid-lambda"
+      },
+      "rank": 8,
+      "match_wins": 5,
+      "match_losses": 6,
+      "game_wins": 10,
+      "game_losses": 12
+    },
+    {
+      "team": {
+        "name": "Greedy Gamma",
+        "repo_url": "https://github.com/fake/greedy-gamma"
+      },
+      "rank": 9,
+      "match_wins": 4,
+      "match_losses": 7,
+      "game_wins": 10,
+      "game_losses": 16
+    },
+    {
+      "team": {
+        "name": "Hybrid Kappa",
+        "repo_url": "https://github.com/fake/hybrid-kappa"
+      },
+      "rank": 10,
+      "match_wins": 2,
+      "match_losses": 9,
+      "game_wins": 7,
+      "game_losses": 18
+    },
+    {
+      "team": {
+        "name": "Random Beta",
+        "repo_url": "https://github.com/fake/random-beta"
+      },
+      "rank": 11,
+      "match_wins": 1,
+      "match_losses": 10,
+      "game_wins": 2,
+      "game_losses": 20
+    },
+    {
+      "team": {
+        "name": "Random Alpha",
+        "repo_url": "https://github.com/fake/random-alpha"
+      },
+      "rank": 12,
+      "match_wins": 0,
+      "match_losses": 11,
+      "game_wins": 0,
+      "game_losses": 22
+    }
+  ],
+  "bracket": [
+    {
+      "match_id": null,
+      "round": "Round of 12",
+      "slot": 0,
+      "team_a": {
+        "name": "Hybrid Mu",
+        "repo_url": "https://github.com/fake/hybrid-mu"
+      },
+      "team_b": null,
+      "winner": {
+        "name": "Hybrid Mu",
+        "repo_url": "https://github.com/fake/hybrid-mu"
+      },
+      "bye": true
+    },
+    {
+      "match_id": "bracket-1-1",
+      "round": "Round of 12",
+      "slot": 1,
+      "team_a": {
+        "name": "Hybrid Lambda",
+        "repo_url": "https://github.com/fake/hybrid-lambda"
+      },
+      "team_b": {
+        "name": "Greedy Gamma",
+        "repo_url": "https://github.com/fake/greedy-gamma"
+      },
+      "winner": {
+        "name": "Hybrid Lambda",
+        "repo_url": "https://github.com/fake/hybrid-lambda"
+      },
+      "bye": false
+    },
+    {
+      "match_id": null,
+      "round": "Round of 12",
+      "slot": 2,
+      "team_a": {
+        "name": "Minimax Eta",
+        "repo_url": "https://github.com/fake/minimax-eta"
+      },
+      "team_b": null,
+      "winner": {
+        "name": "Minimax Eta",
+        "repo_url": "https://github.com/fake/minimax-eta"
+      },
+      "bye": true
+    },
+    {
+      "match_id": "bracket-1-3",
+      "round": "Round of 12",
+      "slot": 3,
+      "team_a": {
+        "name": "Minimax Zeta",
+        "repo_url": "https://github.com/fake/minimax-zeta"
+      },
+      "team_b": {
+        "name": "Random Alpha",
+        "repo_url": "https://github.com/fake/random-alpha"
+      },
+      "winner": {
+        "name": "Minimax Zeta",
+        "repo_url": "https://github.com/fake/minimax-zeta"
+      },
+      "bye": false
+    },
+    {
+      "match_id": null,
+      "round": "Round of 12",
+      "slot": 4,
+      "team_a": {
+        "name": "Minimax Iota",
+        "repo_url": "https://github.com/fake/minimax-iota"
+      },
+      "team_b": null,
+      "winner": {
+        "name": "Minimax Iota",
+        "repo_url": "https://github.com/fake/minimax-iota"
+      },
+      "bye": true
+    },
+    {
+      "match_id": "bracket-1-5",
+      "round": "Round of 12",
+      "slot": 5,
+      "team_a": {
+        "name": "Greedy Delta",
+        "repo_url": "https://github.com/fake/greedy-delta"
+      },
+      "team_b": {
+        "name": "Hybrid Kappa",
+        "repo_url": "https://github.com/fake/hybrid-kappa"
+      },
+      "winner": {
+        "name": "Greedy Delta",
+        "repo_url": "https://github.com/fake/greedy-delta"
+      },
+      "bye": false
+    },
+    {
+      "match_id": null,
+      "round": "Round of 12",
+      "slot": 6,
+      "team_a": {
+        "name": "Minimax Theta",
+        "repo_url": "https://github.com/fake/minimax-theta"
+      },
+      "team_b": null,
+      "winner": {
+        "name": "Minimax Theta",
+        "repo_url": "https://github.com/fake/minimax-theta"
+      },
+      "bye": true
+    },
+    {
+      "match_id": "bracket-1-7",
+      "round": "Round of 12",
+      "slot": 7,
+      "team_a": {
+        "name": "Greedy Epsilon",
+        "repo_url": "https://github.com/fake/greedy-epsilon"
+      },
+      "team_b": {
+        "name": "Random Beta",
+        "repo_url": "https://github.com/fake/random-beta"
+      },
+      "winner": {
+        "name": "Greedy Epsilon",
+        "repo_url": "https://github.com/fake/greedy-epsilon"
+      },
+      "bye": false
+    },
+    {
+      "match_id": "bracket-2-0",
+      "round": "Quarterfinal",
+      "slot": 0,
+      "team_a": {
+        "name": "Hybrid Mu",
+        "repo_url": "https://github.com/fake/hybrid-mu"
+      },
+      "team_b": {
+        "name": "Hybrid Lambda",
+        "repo_url": "https://github.com/fake/hybrid-lambda"
+      },
+      "winner": {
+        "name": "Hybrid Mu",
+        "repo_url": "https://github.com/fake/hybrid-mu"
+      },
+      "bye": false
+    },
+    {
+      "match_id": "bracket-2-1",
+      "round": "Quarterfinal",
+      "slot": 1,
+      "team_a": {
+        "name": "Minimax Eta",
+        "repo_url": "https://github.com/fake/minimax-eta"
+      },
+      "team_b": {
+        "name": "Minimax Zeta",
+        "repo_url": "https://github.com/fake/minimax-zeta"
+      },
+      "winner": {
+        "name": "Minimax Zeta",
+        "repo_url": "https://github.com/fake/minimax-zeta"
+      },
+      "bye": false
+    },
+    {
+      "match_id": "bracket-2-2",
+      "round": "Quarterfinal",
+      "slot": 2,
+      "team_a": {
+        "name": "Minimax Iota",
+        "repo_url": "https://github.com/fake/minimax-iota"
+      },
+      "team_b": {
+        "name": "Greedy Delta",
+        "repo_url": "https://github.com/fake/greedy-delta"
+      },
+      "winner": {
+        "name": "Minimax Iota",
+        "repo_url": "https://github.com/fake/minimax-iota"
+      },
+      "bye": false
+    },
+    {
+      "match_id": "bracket-2-3",
+      "round": "Quarterfinal",
+      "slot": 3,
+      "team_a": {
+        "name": "Minimax Theta",
+        "repo_url": "https://github.com/fake/minimax-theta"
+      },
+      "team_b": {
+        "name": "Greedy Epsilon",
+        "repo_url": "https://github.com/fake/greedy-epsilon"
+      },
+      "winner": {
+        "name": "Minimax Theta",
+        "repo_url": "https://github.com/fake/minimax-theta"
+      },
+      "bye": false
+    },
+    {
+      "match_id": "bracket-3-0",
+      "round": "Semifinal",
+      "slot": 0,
+      "team_a": {
+        "name": "Hybrid Mu",
+        "repo_url": "https://github.com/fake/hybrid-mu"
+      },
+      "team_b": {
+        "name": "Minimax Zeta",
+        "repo_url": "https://github.com/fake/minimax-zeta"
+      },
+      "winner": {
+        "name": "Minimax Zeta",
+        "repo_url": "https://github.com/fake/minimax-zeta"
+      },
+      "bye": false
+    },
+    {
+      "match_id": "bracket-3-1",
+      "round": "Semifinal",
+      "slot": 1,
+      "team_a": {
+        "name": "Minimax Iota",
+        "repo_url": "https://github.com/fake/minimax-iota"
+      },
+      "team_b": {
+        "name": "Minimax Theta",
+        "repo_url": "https://github.com/fake/minimax-theta"
+      },
+      "winner": {
+        "name": "Minimax Theta",
+        "repo_url": "https://github.com/fake/minimax-theta"
+      },
+      "bye": false
+    },
+    {
+      "match_id": "bracket-4-0",
+      "round": "Final",
+      "slot": 0,
+      "team_a": {
+        "name": "Minimax Zeta",
+        "repo_url": "https://github.com/fake/minimax-zeta"
+      },
+      "team_b": {
+        "name": "Minimax Theta",
+        "repo_url": "https://github.com/fake/minimax-theta"
+      },
+      "winner": {
+        "name": "Minimax Theta",
+        "repo_url": "https://github.com/fake/minimax-theta"
+      },
+      "bye": false
+    }
+  ],
+  "generated_at": "2026-09-18T06:09:40.676Z"
+}

@@ -1,0 +1,17 @@
+/* Projector aesthetics: dark, big, readable from the back of a room. */
+@import "tailwindcss";
+@import "@connect-4/theme";
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  font-size: 20px;
+}

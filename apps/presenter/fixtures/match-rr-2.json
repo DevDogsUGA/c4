@@ -1,0 +1,34 @@
+{
+  "match_id": "rr-2",
+  "phase": "roundrobin",
+  "round": "Round 1",
+  "teams": [
+    { "name": "Rando Calrissian", "repo_url": "https://github.com/example/rando-calrissian" },
+    { "name": "Night Owls", "repo_url": "https://github.com/example/night-owls" }
+  ],
+  "games": [
+    {
+      "game_number": 1,
+      "first_player": 1,
+      "first_player_team": 0,
+      "coin_flip": true,
+      "moves": [{ "player": 1, "column": 2, "think_ms": 180 }],
+      "clock_events": [
+        { "type": "forfeit", "player": 2, "reason": "clock_expired", "at_move": 1 }
+      ],
+      "outcome": { "type": "forfeit", "winner": 1, "forfeited_player": 2, "reason": "clock_expired" }
+    },
+    {
+      "game_number": 2,
+      "first_player": 2,
+      "first_player_team": 1,
+      "coin_flip": false,
+      "moves": [{ "player": 1, "column": 5, "think_ms": 90 }],
+      "clock_events": [
+        { "type": "forfeit", "player": 2, "reason": "invalid_move", "at_move": 1 }
+      ],
+      "outcome": { "type": "forfeit", "winner": 1, "forfeited_player": 2, "reason": "invalid_move" }
+    }
+  ],
+  "result": { "winner_team": 0, "games_won": [2, 0], "reason": "played" }
+}

@@ -1,0 +1,465 @@
+{
+  "match_id": "rr-042",
+  "phase": "roundrobin",
+  "teams": [
+    {
+      "name": "Greedy Epsilon",
+      "repo_url": "https://github.com/fake/greedy-epsilon"
+    },
+    {
+      "name": "Minimax Iota",
+      "repo_url": "https://github.com/fake/minimax-iota"
+    }
+  ],
+  "games": [
+    {
+      "game_number": 1,
+      "first_player": 2,
+      "first_player_team": 1,
+      "coin_flip": true,
+      "moves": [
+        {
+          "player": 2,
+          "column": 0,
+          "think_ms": 105
+        },
+        {
+          "player": 1,
+          "column": 2,
+          "think_ms": 72
+        },
+        {
+          "player": 2,
+          "column": 0,
+          "think_ms": 87
+        },
+        {
+          "player": 1,
+          "column": 1,
+          "think_ms": 53
+        },
+        {
+          "player": 2,
+          "column": 0,
+          "think_ms": 94
+        },
+        {
+          "player": 1,
+          "column": 0,
+          "think_ms": 96
+        },
+        {
+          "player": 2,
+          "column": 3,
+          "think_ms": 27
+        },
+        {
+          "player": 1,
+          "column": 0,
+          "think_ms": 65
+        },
+        {
+          "player": 2,
+          "column": 0,
+          "think_ms": 32
+        },
+        {
+          "player": 1,
+          "column": 5,
+          "think_ms": 34
+        },
+        {
+          "player": 2,
+          "column": 0,
+          "think_ms": 18
+        },
+        {
+          "player": 1,
+          "column": 4,
+          "think_ms": 28
+        },
+        {
+          "player": 2,
+          "column": 1,
+          "think_ms": 13
+        },
+        {
+          "player": 1,
+          "column": 1,
+          "think_ms": 70
+        },
+        {
+          "player": 2,
+          "column": 1,
+          "think_ms": 82
+        },
+        {
+          "player": 1,
+          "column": 2,
+          "think_ms": 62
+        },
+        {
+          "player": 2,
+          "column": 2,
+          "think_ms": 14
+        },
+        {
+          "player": 1,
+          "column": 5,
+          "think_ms": 80
+        },
+        {
+          "player": 2,
+          "column": 2,
+          "think_ms": 19
+        },
+        {
+          "player": 1,
+          "column": 5,
+          "think_ms": 34
+        },
+        {
+          "player": 2,
+          "column": 5,
+          "think_ms": 65
+        },
+        {
+          "player": 1,
+          "column": 5,
+          "think_ms": 105
+        },
+        {
+          "player": 2,
+          "column": 2,
+          "think_ms": 95
+        },
+        {
+          "player": 1,
+          "column": 2,
+          "think_ms": 81
+        },
+        {
+          "player": 2,
+          "column": 4,
+          "think_ms": 42
+        },
+        {
+          "player": 1,
+          "column": 6,
+          "think_ms": 47
+        },
+        {
+          "player": 2,
+          "column": 7,
+          "think_ms": 84
+        },
+        {
+          "player": 1,
+          "column": 5,
+          "think_ms": 74
+        },
+        {
+          "player": 2,
+          "column": 1,
+          "think_ms": 49
+        },
+        {
+          "player": 1,
+          "column": 6,
+          "think_ms": 84
+        },
+        {
+          "player": 2,
+          "column": 3,
+          "think_ms": 31
+        },
+        {
+          "player": 1,
+          "column": 3,
+          "think_ms": 31
+        },
+        {
+          "player": 2,
+          "column": 1,
+          "think_ms": 74
+        },
+        {
+          "player": 1,
+          "column": 1,
+          "think_ms": 30
+        },
+        {
+          "player": 2,
+          "column": 3,
+          "think_ms": 70
+        }
+      ],
+      "clock_events": [],
+      "outcome": {
+        "type": "four_in_a_row",
+        "winner": 2
+      }
+    },
+    {
+      "game_number": 2,
+      "first_player": 1,
+      "first_player_team": 0,
+      "coin_flip": false,
+      "moves": [
+        {
+          "player": 1,
+          "column": 0,
+          "think_ms": 78
+        },
+        {
+          "player": 2,
+          "column": 0,
+          "think_ms": 58
+        },
+        {
+          "player": 1,
+          "column": 2,
+          "think_ms": 42
+        },
+        {
+          "player": 2,
+          "column": 1,
+          "think_ms": 41
+        },
+        {
+          "player": 1,
+          "column": 3,
+          "think_ms": 107
+        },
+        {
+          "player": 2,
+          "column": 1,
+          "think_ms": 59
+        },
+        {
+          "player": 1,
+          "column": 0,
+          "think_ms": 61
+        },
+        {
+          "player": 2,
+          "column": 0,
+          "think_ms": 13
+        },
+        {
+          "player": 1,
+          "column": 6,
+          "think_ms": 38
+        },
+        {
+          "player": 2,
+          "column": 1,
+          "think_ms": 22
+        },
+        {
+          "player": 1,
+          "column": 1,
+          "think_ms": 66
+        },
+        {
+          "player": 2,
+          "column": 0,
+          "think_ms": 68
+        },
+        {
+          "player": 1,
+          "column": 4,
+          "think_ms": 52
+        },
+        {
+          "player": 2,
+          "column": 5,
+          "think_ms": 26
+        },
+        {
+          "player": 1,
+          "column": 7,
+          "think_ms": 68
+        },
+        {
+          "player": 2,
+          "column": 0,
+          "think_ms": 108
+        },
+        {
+          "player": 1,
+          "column": 0,
+          "think_ms": 22
+        },
+        {
+          "player": 2,
+          "column": 1,
+          "think_ms": 63
+        },
+        {
+          "player": 1,
+          "column": 2,
+          "think_ms": 55
+        },
+        {
+          "player": 2,
+          "column": 2,
+          "think_ms": 67
+        },
+        {
+          "player": 1,
+          "column": 5,
+          "think_ms": 67
+        },
+        {
+          "player": 2,
+          "column": 2,
+          "think_ms": 34
+        },
+        {
+          "player": 1,
+          "column": 2,
+          "think_ms": 62
+        },
+        {
+          "player": 2,
+          "column": 3,
+          "think_ms": 106
+        },
+        {
+          "player": 1,
+          "column": 3,
+          "think_ms": 48
+        },
+        {
+          "player": 2,
+          "column": 3,
+          "think_ms": 84
+        },
+        {
+          "player": 1,
+          "column": 3,
+          "think_ms": 32
+        },
+        {
+          "player": 2,
+          "column": 3,
+          "think_ms": 103
+        },
+        {
+          "player": 1,
+          "column": 3,
+          "think_ms": 31
+        },
+        {
+          "player": 2,
+          "column": 1,
+          "think_ms": 48
+        },
+        {
+          "player": 1,
+          "column": 2,
+          "think_ms": 80
+        },
+        {
+          "player": 2,
+          "column": 1,
+          "think_ms": 35
+        },
+        {
+          "player": 1,
+          "column": 1,
+          "think_ms": 64
+        },
+        {
+          "player": 2,
+          "column": 2,
+          "think_ms": 99
+        },
+        {
+          "player": 1,
+          "column": 3,
+          "think_ms": 82
+        },
+        {
+          "player": 2,
+          "column": 0,
+          "think_ms": 82
+        },
+        {
+          "player": 1,
+          "column": 5,
+          "think_ms": 60
+        },
+        {
+          "player": 2,
+          "column": 5,
+          "think_ms": 78
+        },
+        {
+          "player": 1,
+          "column": 6,
+          "think_ms": 51
+        },
+        {
+          "player": 2,
+          "column": 2,
+          "think_ms": 80
+        },
+        {
+          "player": 1,
+          "column": 5,
+          "think_ms": 90
+        },
+        {
+          "player": 2,
+          "column": 5,
+          "think_ms": 55
+        },
+        {
+          "player": 1,
+          "column": 7,
+          "think_ms": 95
+        },
+        {
+          "player": 2,
+          "column": 4,
+          "think_ms": 38
+        },
+        {
+          "player": 1,
+          "column": 5,
+          "think_ms": 14
+        },
+        {
+          "player": 2,
+          "column": 6,
+          "think_ms": 30
+        },
+        {
+          "player": 1,
+          "column": 4,
+          "think_ms": 101
+        },
+        {
+          "player": 2,
+          "column": 4,
+          "think_ms": 69
+        }
+      ],
+      "clock_events": [],
+      "outcome": {
+        "type": "four_in_a_row",
+        "winner": 2
+      }
+    }
+  ],
+  "result": {
+    "winner_team": 1,
+    "games_won": [
+      0,
+      2
+    ],
+    "reason": "played"
+  }
+}

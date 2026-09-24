@@ -1,0 +1,10 @@
+{
+  "summary": "summary.json",
+  "matches": [
+    "match-rr-1.json",
+    "match-rr-2.json",
+    "match-sf-1.json",
+    "match-sf-2.json",
+    "match-final.json"
+  ]
+}

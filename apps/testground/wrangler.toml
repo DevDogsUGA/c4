@@ -1,0 +1,10 @@
+name = "connect-4-testground"
+compatibility_date = "2024-09-19"
+
+# Static site: `vite build` emits ./dist, served directly by Workers static
+# assets. No Worker script needed for this package. Per
+# IMPLEMENTATION_PLAN.md, this config exists for future deployment;
+# `wrangler deploy` is not run as part of this build.
+[assets]
+directory = "./dist"
+not_found_handling = "single-page-application"

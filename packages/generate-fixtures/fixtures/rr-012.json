@@ -1,0 +1,205 @@
+{
+  "match_id": "rr-012",
+  "phase": "roundrobin",
+  "teams": [
+    {
+      "name": "Random Beta",
+      "repo_url": "https://github.com/fake/random-beta"
+    },
+    {
+      "name": "Greedy Gamma",
+      "repo_url": "https://github.com/fake/greedy-gamma"
+    }
+  ],
+  "games": [
+    {
+      "game_number": 1,
+      "first_player": 2,
+      "first_player_team": 1,
+      "coin_flip": true,
+      "moves": [
+        {
+          "player": 2,
+          "column": 2,
+          "think_ms": 80
+        },
+        {
+          "player": 1,
+          "column": 7,
+          "think_ms": 68
+        },
+        {
+          "player": 2,
+          "column": 6,
+          "think_ms": 92
+        },
+        {
+          "player": 1,
+          "column": 7,
+          "think_ms": 46
+        },
+        {
+          "player": 2,
+          "column": 4,
+          "think_ms": 14
+        },
+        {
+          "player": 1,
+          "column": 7,
+          "think_ms": 76
+        },
+        {
+          "player": 2,
+          "column": 7,
+          "think_ms": 35
+        },
+        {
+          "player": 1,
+          "column": 7,
+          "think_ms": 57
+        },
+        {
+          "player": 2,
+          "column": 3,
+          "think_ms": 104
+        },
+        {
+          "player": 1,
+          "column": 1,
+          "think_ms": 98
+        },
+        {
+          "player": 2,
+          "column": 5,
+          "think_ms": 62
+        }
+      ],
+      "clock_events": [],
+      "outcome": {
+        "type": "four_in_a_row",
+        "winner": 2
+      }
+    },
+    {
+      "game_number": 2,
+      "first_player": 1,
+      "first_player_team": 0,
+      "coin_flip": false,
+      "moves": [
+        {
+          "player": 1,
+          "column": 4,
+          "think_ms": 23
+        },
+        {
+          "player": 2,
+          "column": 4,
+          "think_ms": 10
+        },
+        {
+          "player": 1,
+          "column": 0,
+          "think_ms": 82
+        },
+        {
+          "player": 2,
+          "column": 5,
+          "think_ms": 18
+        },
+        {
+          "player": 1,
+          "column": 5,
+          "think_ms": 83
+        },
+        {
+          "player": 2,
+          "column": 1,
+          "think_ms": 63
+        },
+        {
+          "player": 1,
+          "column": 3,
+          "think_ms": 28
+        },
+        {
+          "player": 2,
+          "column": 3,
+          "think_ms": 33
+        },
+        {
+          "player": 1,
+          "column": 0,
+          "think_ms": 52
+        },
+        {
+          "player": 2,
+          "column": 7,
+          "think_ms": 25
+        },
+        {
+          "player": 1,
+          "column": 3,
+          "think_ms": 12
+        },
+        {
+          "player": 2,
+          "column": 7,
+          "think_ms": 34
+        },
+        {
+          "player": 1,
+          "column": 5,
+          "think_ms": 61
+        },
+        {
+          "player": 2,
+          "column": 6,
+          "think_ms": 44
+        },
+        {
+          "player": 1,
+          "column": 7,
+          "think_ms": 88
+        },
+        {
+          "player": 2,
+          "column": 2,
+          "think_ms": 93
+        },
+        {
+          "player": 1,
+          "column": 4,
+          "think_ms": 23
+        },
+        {
+          "player": 2,
+          "column": 1,
+          "think_ms": 80
+        },
+        {
+          "player": 1,
+          "column": 6,
+          "think_ms": 46
+        },
+        {
+          "player": 2,
+          "column": 2,
+          "think_ms": 57
+        }
+      ],
+      "clock_events": [],
+      "outcome": {
+        "type": "four_in_a_row",
+        "winner": 2
+      }
+    }
+  ],
+  "result": {
+    "winner_team": 1,
+    "games_won": [
+      0,
+      2
+    ],
+    "reason": "played"
+  }
+}

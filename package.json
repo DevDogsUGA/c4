@@ -1,0 +1,22 @@
+{
+  "name": "connect-4-tournament",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ACM UGA Connect Four hackathon tournament platform",
+  "type": "module",
+  "scripts": {
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r exec tsc --noEmit",
+    "dev": "pnpm -r --parallel dev",
+    "fixtures": "pnpm -C packages/generate-fixtures fixtures"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  },
+  "engines": {
+    "node": ">=22.0.0",
+    "pnpm": ">=9.0.0"
+  }
+}

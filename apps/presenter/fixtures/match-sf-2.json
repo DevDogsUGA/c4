@@ -1,0 +1,45 @@
+{
+  "match_id": "sf-2",
+  "phase": "bracket",
+  "round": "Semifinal",
+  "teams": [
+    { "name": "Rando Calrissian", "repo_url": "https://github.com/example/rando-calrissian" },
+    { "name": "Bit Flippers", "repo_url": "https://github.com/example/bit-flippers" }
+  ],
+  "games": [
+    {
+      "game_number": 1,
+      "first_player": 1,
+      "first_player_team": 0,
+      "coin_flip": true,
+      "moves": [{ "player": 2, "column": 1, "think_ms": 210 }],
+      "clock_events": [
+        { "type": "forfeit", "player": 1, "reason": "clock_expired", "at_move": 1 }
+      ],
+      "outcome": { "type": "forfeit", "winner": 2, "forfeited_player": 1, "reason": "clock_expired" }
+    },
+    {
+      "game_number": 2,
+      "first_player": 2,
+      "first_player_team": 0,
+      "coin_flip": false,
+      "moves": [{ "player": 2, "column": 7, "think_ms": 130 }],
+      "clock_events": [
+        { "type": "forfeit", "player": 1, "reason": "invalid_move", "at_move": 1 }
+      ],
+      "outcome": { "type": "forfeit", "winner": 2, "forfeited_player": 1, "reason": "invalid_move" }
+    },
+    {
+      "game_number": 3,
+      "first_player": 1,
+      "first_player_team": 1,
+      "coin_flip": false,
+      "moves": [{ "player": 2, "column": 2, "think_ms": 175 }],
+      "clock_events": [
+        { "type": "forfeit", "player": 1, "reason": "invalid_move", "at_move": 1 }
+      ],
+      "outcome": { "type": "forfeit", "winner": 2, "forfeited_player": 1, "reason": "invalid_move" }
+    }
+  ],
+  "result": { "winner_team": 0, "games_won": [2, 1], "reason": "played" }
+}

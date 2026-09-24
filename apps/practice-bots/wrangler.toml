@@ -1,0 +1,7 @@
+name = "connect-4-practice-bots"
+main = "src/index.ts"
+compatibility_date = "2024-09-19"
+
+# `wrangler dev` serves on http://localhost:8787 (the testground's
+# DEFAULT_PRACTICE_BOTS_URL). No routes configured; deployment is
+# deferred (see IMPLEMENTATION_PLAN.md).

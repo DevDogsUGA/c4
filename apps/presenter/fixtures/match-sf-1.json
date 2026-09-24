@@ -1,0 +1,35 @@
+{
+  "match_id": "sf-1",
+  "phase": "bracket",
+  "round": "Semifinal",
+  "teams": [
+    { "name": "Team Rocket", "repo_url": "https://github.com/example/team-rocket" },
+    { "name": "Night Owls", "repo_url": "https://github.com/example/night-owls" }
+  ],
+  "games": [
+    {
+      "game_number": 1,
+      "first_player": 1,
+      "first_player_team": 0,
+      "coin_flip": true,
+      "moves": [{ "player": 1, "column": 4, "think_ms": 140 }],
+      "clock_events": [
+        { "type": "forfeit", "player": 2, "reason": "invalid_move", "at_move": 1 }
+      ],
+      "outcome": { "type": "forfeit", "winner": 1, "forfeited_player": 2, "reason": "invalid_move" }
+    },
+    {
+      "game_number": 2,
+      "first_player": 2,
+      "first_player_team": 1,
+      "coin_flip": false,
+      "moves": [{ "player": 1, "column": 6, "think_ms": 95 }],
+      "clock_events": [
+        { "type": "restart", "player": 2, "billed_ms": 1200, "at_move": 0 },
+        { "type": "forfeit", "player": 2, "reason": "crash_loop", "at_move": 1 }
+      ],
+      "outcome": { "type": "forfeit", "winner": 1, "forfeited_player": 2, "reason": "crash_loop" }
+    }
+  ],
+  "result": { "winner_team": 0, "games_won": [2, 0], "reason": "played" }
+}
