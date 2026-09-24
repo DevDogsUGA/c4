@@ -30,7 +30,11 @@ const program = new Command();
 program.name('c4').description('Connect Four hackathon match engine').version('1.0.0');
 
 function makeProvider(): DockerBotProvider {
-  return new DockerBotProvider(new DockerContainerRuntime(new Docker()));
+  // C4_RUN_ID labels every container/network/image this process creates
+  // (c4.run=<id>), so an operator or test can find exactly this run's
+  // leftovers on a shared Docker daemon. Random when unset.
+  const runId = process.env.C4_RUN_ID?.trim() || undefined;
+  return new DockerBotProvider(new DockerContainerRuntime(new Docker(), runId));
 }
 
 function defaultSeed(): number {

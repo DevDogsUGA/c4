@@ -50,11 +50,15 @@ interface RunResult {
   stderr: string;
 }
 
+/** Labels everything this test's CLI runs create (c4.run=<RUN_ID>), so leak checks ignore other users of a shared daemon. */
+const RUN_ID = `e2e-${process.pid}-${Date.now()}`;
+
 /** Runs a `c4` CLI subcommand as a real child process, exactly like an organizer would. Never throws on a non-zero exit — `freeze`/`validate` are expected to exit 1 when the roster has broken teams. */
 async function runCli(args: string[]): Promise<RunResult> {
   try {
     const { stdout, stderr } = await execFileAsync('node', [CLI_PATH, ...args], {
       maxBuffer: 32 * 1024 * 1024,
+      env: { ...process.env, C4_RUN_ID: RUN_ID },
     });
     return { code: 0, stdout, stderr };
   } catch (err) {
@@ -368,11 +372,11 @@ describe.skipIf(!RUN_DOCKER_TESTS || !HAS_HACKATHON_REPO)('c4 CLI end-to-end acc
       // beforeAll baseline (see its comment) so this doesn't false-fail
       // against unrelated c4.arena=1 resources from another concurrently
       // running test file / agent sharing this Docker daemon.
-      const containersAfter = await docker.listContainers({ all: true, filters: JSON.stringify({ label: ['c4.arena=1'] }) });
+      const containersAfter = await docker.listContainers({ all: true, filters: JSON.stringify({ label: [`c4.run=${RUN_ID}`] }) });
       const newContainers = containersAfter.filter((c) => !containerIdsBefore.has(c.Id));
       expect(newContainers, JSON.stringify(newContainers.map((c) => c.Names))).toHaveLength(0);
 
-      const networksAfter = await docker.listNetworks({ filters: JSON.stringify({ label: ['c4.arena=1'] }) });
+      const networksAfter = await docker.listNetworks({ filters: JSON.stringify({ label: [`c4.run=${RUN_ID}`] }) });
       const newNetworks = networksAfter.filter((n) => !networkIdsBefore.has(n.Id));
       expect(newNetworks, JSON.stringify(newNetworks.map((n) => n.Name))).toHaveLength(0);
 

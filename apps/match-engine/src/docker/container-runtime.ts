@@ -242,8 +242,34 @@ async function waitForHealthy(baseUrl: string, timeoutMs: number): Promise<{ hea
   }
 }
 
-/** Runs one `docker build`, bounded by the shared build semaphore and a hard wall-clock timeout, with a trailing-log tail captured for ImageBuildError's detail. */
+/** How many times a failed `docker build` is attempted before it counts as build_failed. */
+const BUILD_ATTEMPTS = 2;
+
+/**
+ * Builds an image, retrying once on failure. Template builds download
+ * dependencies (crates, npm, NuGet, ...), so a transient network or memory
+ * hiccup must not forfeit a working team. A genuine compile error just fails
+ * twice; the retry reuses Docker's layer cache, so it costs little.
+ */
 async function buildImage(
+  docker: Docker,
+  repoDir: string,
+  tag: string,
+  labels: Record<string, string>,
+  timeoutMs: number = BUILD_TIMEOUT_MS,
+): Promise<void> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await buildImageOnce(docker, repoDir, tag, labels, timeoutMs);
+    } catch (err) {
+      if (!(err instanceof ImageBuildError) || attempt >= BUILD_ATTEMPTS) throw err;
+      console.error(`[c4] build of ${tag} failed (attempt ${attempt}/${BUILD_ATTEMPTS}), retrying: ${err.message.split('\n')[0]}`);
+    }
+  }
+}
+
+/** Runs one `docker build`, bounded by the shared build semaphore and a hard wall-clock timeout, with a trailing-log tail captured for ImageBuildError's detail. */
+async function buildImageOnce(
   docker: Docker,
   repoDir: string,
   tag: string,
