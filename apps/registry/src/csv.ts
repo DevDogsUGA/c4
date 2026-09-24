@@ -16,7 +16,7 @@ export function teamsToCsv(teams: TeamRow[]): string {
         csvField(t.team_name),
         csvField(t.repo_url),
         csvField(members),
-        csvField(t.submitter_email),
+        csvField(t.submitter_email || '—'),
         csvField(t.updated_at),
       ].join(','),
     );

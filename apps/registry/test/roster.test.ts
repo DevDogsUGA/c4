@@ -39,4 +39,17 @@ describe('GET /api/roster', () => {
       ['id', 'members', 'repo_url', 'submitter_email', 'team_name', 'updated_at'].sort(),
     );
   });
+
+  it('still reports submitter_email as an empty string when the form did not collect one', async () => {
+    const payload = makeFormPayload({ submitter_email: '' });
+    await SELF.fetch(await signedFormRequest(payload));
+
+    const res = await SELF.fetch('https://registry.test/api/roster', {
+      headers: { Authorization: `Bearer ${TEST_ENV.ROSTER_TOKEN}` },
+    });
+    const body = (await res.json()) as { teams: Array<Record<string, unknown>> };
+    const team = body.teams.find((t) => t.team_name === payload.team_name);
+    expect(team).toBeDefined();
+    expect(team!.submitter_email).toBe('');
+  });
 });

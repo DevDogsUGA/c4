@@ -111,11 +111,26 @@ function getForm_() {
   return formId ? FormApp.openById(formId) : FormApp.getActiveForm();
 }
 
+/**
+ * The form no longer collects email addresses (everyone registers in
+ * person, same room), so getRespondentEmail() is typically unavailable —
+ * it throws (collection off) or returns '' depending on the Form's
+ * configuration. Either way, fall back to '': email is never team identity
+ * (see response_id) and is purely informational when present.
+ */
+function safeRespondentEmail_(formResponse) {
+  try {
+    return formResponse.getRespondentEmail() || '';
+  } catch (err) {
+    return '';
+  }
+}
+
 function payloadFromFormResponse_(formResponse) {
   var answers = extractAnswers(formResponse.getItemResponses());
   return buildFormPayload({
     responseId: formResponse.getId(),
-    submitterEmail: formResponse.getRespondentEmail(),
+    submitterEmail: safeRespondentEmail_(formResponse),
     teamName: answers.teamName,
     repoUrl: answers.repoUrl,
     membersText: answers.membersText,
@@ -189,6 +204,12 @@ function setup() {
  * own responses (production form's doGet only returns production data,
  * staging form's doGet only returns staging data) — there is no
  * cross-environment merge here. Requires ?token=<ROSTER_TOKEN>.
+ *
+ * One team per form response: form.getResponses() already returns each
+ * response's latest edited version (Google Forms overwrites the response
+ * in place on "edit your response"), keyed by response id — matching the
+ * Worker's identity-by-response_id upsert semantics now that the form
+ * doesn't collect email addresses.
  */
 function doGet(e) {
   var token = e && e.parameter ? e.parameter.token : null;
@@ -201,31 +222,19 @@ function doGet(e) {
   var form = getForm_();
   var responses = form.getResponses();
 
-  // Latest response per respondent email, mirroring the Worker's
-  // identity-by-email upsert semantics.
-  var latestByEmail = {};
+  var teams = [];
   for (var i = 0; i < responses.length; i++) {
     var fr = responses[i];
-    var email = fr.getRespondentEmail();
-    var prev = latestByEmail[email];
-    if (!prev || fr.getTimestamp() > prev.getTimestamp()) {
-      latestByEmail[email] = fr;
-    }
-  }
-
-  var teams = [];
-  Object.keys(latestByEmail).forEach(function (email) {
-    var fr = latestByEmail[email];
     var answers = extractAnswers(fr.getItemResponses());
     teams.push({
       id: fr.getId(),
       team_name: answers.teamName,
       repo_url: answers.repoUrl,
       members: parseMembers(answers.membersText),
-      submitter_email: email,
+      submitter_email: safeRespondentEmail_(fr),
       updated_at: fr.getTimestamp().toISOString(),
     });
-  });
+  }
 
   return ContentService.createTextOutput(JSON.stringify({ teams: teams })).setMimeType(ContentService.MimeType.JSON);
 }
@@ -265,5 +274,8 @@ if (typeof module !== 'undefined') {
     buildFormPayload: buildFormPayload,
     findAnswerByTitle: findAnswerByTitle,
     extractAnswers: extractAnswers,
+    safeRespondentEmail_: safeRespondentEmail_,
+    payloadFromFormResponse_: payloadFromFormResponse_,
+    doGet: doGet,
   };
 }

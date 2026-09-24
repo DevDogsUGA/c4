@@ -17,14 +17,15 @@
  *   STAGING_ENTRY_TEAM     - entry.<id> for the "Team name" field
  *   STAGING_ENTRY_REPO     - entry.<id> for the "GitHub repo URL" field
  *   STAGING_ENTRY_MEMBERS  - entry.<id> for the "Team members" field
- *   STAGING_ENTRY_EMAIL    - entry.<id> for the form's own responder-input
- *                            email field (staging forms aren't UGA-verified,
- *                            so email is a plain question, not "collect
- *                            verified email")
  *   WORKER_URL             - e.g. https://REGISTRY_HOST (no trailing slash)
  *   ROSTER_TOKEN            - must match the Worker's ROSTER_TOKEN secret
  *
  * Optional:
+ *   STAGING_ENTRY_EMAIL - entry.<id> for the form's own responder-input
+ *                         email field, if the staging form happens to have
+ *                         one. The production form no longer collects email
+ *                         addresses at all, so this is send-if-present only
+ *                         — omit it entirely to exercise the no-email path.
  *   POLL_TIMEOUT_MS  - default 60000
  *   POLL_INTERVAL_MS - default 2000
  */
@@ -43,18 +44,18 @@ async function main() {
   const entryTeam = requireEnv('STAGING_ENTRY_TEAM');
   const entryRepo = requireEnv('STAGING_ENTRY_REPO');
   const entryMembers = requireEnv('STAGING_ENTRY_MEMBERS');
-  const entryEmail = requireEnv('STAGING_ENTRY_EMAIL');
+  const entryEmail = process.env.STAGING_ENTRY_EMAIL;
   const workerUrl = requireEnv('WORKER_URL').replace(/\/$/, '');
   const rosterToken = requireEnv('ROSTER_TOKEN');
 
   const pollTimeoutMs = Number(process.env.POLL_TIMEOUT_MS ?? 60_000);
   const pollIntervalMs = Number(process.env.POLL_INTERVAL_MS ?? 2_000);
 
-  // A unique team name/email per run so we can unambiguously find our own
+  // A unique team name per run so we can unambiguously find our own
   // submission in the roster even if the staging form has other test data.
   const runId = Date.now().toString(36);
   const teamName = `staging-e2e-${runId}`;
-  const email = `staging-e2e-${runId}@example.com`;
+  const email = entryEmail ? `staging-e2e-${runId}@example.com` : '';
   const repoUrl = `https://github.com/octocat/Hello-World`; // any reachable public repo
   const members = 'Staging Bot A\nStaging Bot B';
 
@@ -64,7 +65,7 @@ async function main() {
   formBody.set(entryTeam, teamName);
   formBody.set(entryRepo, repoUrl);
   formBody.set(entryMembers, members);
-  formBody.set(entryEmail, email);
+  if (entryEmail) formBody.set(entryEmail, email);
 
   const submitUrl = `https://docs.google.com/forms/d/e/${formId}/formResponse`;
   const submitRes = await fetch(submitUrl, {
@@ -89,7 +90,7 @@ async function main() {
       });
       if (res.ok) {
         const body = (await res.json()) as { teams: Array<{ team_name: string; submitter_email: string }> };
-        if (body.teams.some((t) => t.team_name === teamName || t.submitter_email === email)) {
+        if (body.teams.some((t) => t.team_name === teamName || (email && t.submitter_email === email))) {
           found = true;
           break;
         }

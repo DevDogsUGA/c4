@@ -45,27 +45,50 @@ describe('POST /api/form', () => {
     expect(res.status).toBe(422);
   });
 
-  it('treats a second submission from the same email (new response_id) as an edit, not a duplicate', async () => {
-    const email = 'edit-test@uga.edu';
-    const first = makeFormPayload({ submitter_email: email, team_name: 'Original Name' });
+  it('treats a second submission with the same response_id as an edit, not a duplicate', async () => {
+    const responseId = 'edit-test-response-id';
+    const first = makeFormPayload({ response_id: responseId, team_name: 'Original Name' });
     const r1 = await SELF.fetch(await signedFormRequest(first));
     expect(r1.status).toBe(201);
 
     const second = makeFormPayload({
-      submitter_email: email,
+      response_id: responseId,
       team_name: 'Renamed Team',
-      response_id: 'a-totally-different-response-id',
+      repo_url: first.repo_url,
     });
     const r2 = await SELF.fetch(await signedFormRequest(second));
     expect(r2.status).toBe(200); // updated, not created
 
     const { teams } = await roster();
-    const matches = teams.filter((t) => t.submitter_email === email);
+    const matches = teams.filter((t) => t.repo_url === first.repo_url);
     expect(matches).toHaveLength(1);
     expect(matches[0].team_name).toBe('Renamed Team');
   });
 
-  it('rejects a repo URL already claimed by a different team', async () => {
+  it('two different response ids with empty emails produce two separate teams', async () => {
+    const first = makeFormPayload({ submitter_email: '', response_id: 'resp-a', team_name: 'Team A' });
+    const second = makeFormPayload({ submitter_email: '', response_id: 'resp-b', team_name: 'Team B' });
+
+    const r1 = await SELF.fetch(await signedFormRequest(first));
+    expect(r1.status).toBe(201);
+    const r2 = await SELF.fetch(await signedFormRequest(second));
+    expect(r2.status).toBe(201);
+
+    const { teams } = await roster();
+    expect(teams.some((t) => t.team_name === 'Team A' && t.submitter_email === '')).toBe(true);
+    expect(teams.some((t) => t.team_name === 'Team B' && t.submitter_email === '')).toBe(true);
+  });
+
+  it('accepts a payload with no submitter_email field at all', async () => {
+    const payload = makeFormPayload();
+    delete payload.submitter_email;
+    const res = await SELF.fetch(await signedFormRequest(payload));
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as { team: { submitter_email: string } };
+    expect(body.team.submitter_email).toBe('');
+  });
+
+  it('rejects a repo URL already claimed by a different response_id', async () => {
     const shared = 'https://github.com/shared-team/repo';
     const first = makeFormPayload({ repo_url: shared });
     const r1 = await SELF.fetch(await signedFormRequest(first));
@@ -74,6 +97,21 @@ describe('POST /api/form', () => {
     const second = makeFormPayload({ repo_url: shared });
     const r2 = await SELF.fetch(await signedFormRequest(second));
     expect(r2.status).toBe(409);
+  });
+
+  it('allows the same response_id to keep the same repo_url on edit (not treated as a conflict)', async () => {
+    const repoUrl = 'https://github.com/same-team/repo';
+    const payload = makeFormPayload({ repo_url: repoUrl, response_id: 'self-edit-response-id' });
+    const r1 = await SELF.fetch(await signedFormRequest(payload));
+    expect(r1.status).toBe(201);
+
+    const edited = makeFormPayload({
+      repo_url: repoUrl,
+      response_id: 'self-edit-response-id',
+      team_name: 'Updated Name',
+    });
+    const r2 = await SELF.fetch(await signedFormRequest(edited));
+    expect(r2.status).toBe(200);
   });
 
   it('enforces the 32-team cap', async () => {

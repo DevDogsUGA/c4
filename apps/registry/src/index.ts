@@ -120,7 +120,6 @@ app.post('/api/form', async (c) => {
 
   if (
     !payload.response_id ||
-    !payload.submitter_email ||
     !payload.team_name ||
     !payload.repo_url ||
     !Array.isArray(payload.members)

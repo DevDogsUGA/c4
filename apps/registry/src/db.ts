@@ -34,10 +34,10 @@ export async function listTeams(db: D1Database, env?: TeamEnv): Promise<TeamRow[
   return results ?? [];
 }
 
-export async function getTeamByEmail(db: D1Database, email: string, env: TeamEnv): Promise<TeamRow | null> {
+export async function getTeamByResponseId(db: D1Database, responseId: string, env: TeamEnv): Promise<TeamRow | null> {
   return db
-    .prepare('SELECT * FROM teams WHERE submitter_email = ? AND env = ?')
-    .bind(email, env)
+    .prepare('SELECT * FROM teams WHERE response_id = ? AND env = ?')
+    .bind(responseId, env)
     .first<TeamRow>();
 }
 
@@ -62,10 +62,13 @@ export type UpsertOutcome =
   | { ok: false; status: number; reason: string };
 
 /**
- * Upsert a team registration. Identity is the normalized submitter email:
- * a new response_id from the same email updates the existing team rather
- * than creating a duplicate. Enforces the 32-team cap on new teams and
- * rejects a repo URL already claimed by a different team.
+ * Upsert a team registration. Identity is (response_id, env): the Google
+ * Form doesn't collect email addresses (everyone registers in person), but
+ * a response id is stable across "edit your response" edits, so the same
+ * response_id updates the existing team rather than creating a duplicate.
+ * submitter_email is stored as-is (often '') and never used for identity.
+ * Enforces the 32-team cap on new teams and rejects a repo URL already
+ * claimed by a *different* response_id in the same env.
  */
 export async function upsertTeam(
   db: D1Database,
@@ -73,24 +76,25 @@ export async function upsertTeam(
   normalizedRepoUrl: string,
   now: string,
 ): Promise<UpsertOutcome> {
-  const email = payload.submitter_email.trim().toLowerCase();
+  const email = (payload.submitter_email ?? '').trim().toLowerCase();
   const env: TeamEnv = payload.env === 'staging' ? 'staging' : 'production';
+  const responseId = payload.response_id;
 
   const conflicting = await getTeamByRepoUrl(db, normalizedRepoUrl, env);
-  if (conflicting && conflicting.submitter_email !== email) {
+  if (conflicting && conflicting.response_id !== responseId) {
     return { ok: false, status: 409, reason: 'repo_url already registered by another team' };
   }
 
-  const existing = await getTeamByEmail(db, email, env);
+  const existing = await getTeamByResponseId(db, responseId, env);
   const membersJson = JSON.stringify(payload.members);
 
   if (existing) {
     await db
       .prepare(
-        `UPDATE teams SET response_id = ?, team_name = ?, repo_url = ?, members_json = ?, updated_at = ?
+        `UPDATE teams SET submitter_email = ?, team_name = ?, repo_url = ?, members_json = ?, updated_at = ?
          WHERE id = ?`,
       )
-      .bind(payload.response_id, payload.team_name, normalizedRepoUrl, membersJson, now, existing.id)
+      .bind(email, payload.team_name, normalizedRepoUrl, membersJson, now, existing.id)
       .run();
     const updated = await db.prepare('SELECT * FROM teams WHERE id = ?').bind(existing.id).first<TeamRow>();
     return { ok: true, team: updated as TeamRow, created: false };
@@ -106,10 +110,10 @@ export async function upsertTeam(
       `INSERT INTO teams (response_id, submitter_email, team_name, repo_url, members_json, env, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-    .bind(payload.response_id, email, payload.team_name, normalizedRepoUrl, membersJson, env, now, now)
+    .bind(responseId, email, payload.team_name, normalizedRepoUrl, membersJson, env, now, now)
     .run();
 
-  const created = await getTeamByEmail(db, email, env);
+  const created = await getTeamByResponseId(db, responseId, env);
   return { ok: true, team: created as TeamRow, created: true };
 }
 
