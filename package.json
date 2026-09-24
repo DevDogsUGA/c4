@@ -9,7 +9,9 @@
     "test": "pnpm -r test",
     "typecheck": "pnpm -r exec tsc --noEmit",
     "dev": "pnpm -r --parallel dev",
-    "fixtures": "pnpm -C packages/generate-fixtures fixtures"
+    "fixtures": "pnpm -C packages/generate-fixtures fixtures",
+    "check:workers": "node scripts/check-workers.mjs",
+    "deploy:workers": "pnpm -C apps/practice-bots exec wrangler deploy && pnpm -C apps/testground build && pnpm -C apps/testground exec wrangler deploy && pnpm run check:workers"
   },
   "devDependencies": {
     "typescript": "^5.6.0",
