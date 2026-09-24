@@ -51,3 +51,6 @@ yarn-error.log*
 .c4-samples-work/
 .c4-samples-out/
 .c4-checkouts/
+
+# clasp project binding (script id)
+.clasp.json
