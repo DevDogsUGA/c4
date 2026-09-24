@@ -142,6 +142,32 @@ describe('eliminationSequence', () => {
     expect(eliminationSequence(rounds, new Map())).toEqual([]);
   });
 
+  it('omits a played double-forfeit slot too (winner: null even though match_id is set)', () => {
+    const doubleForfeit: BracketMatch[] = [bm('Round 1', 0, 'A', 'B', null, false, 'r1-0')];
+    const matches = new Map<string, MatchRecord>([
+      [
+        'r1-0',
+        {
+          match_id: 'r1-0',
+          phase: 'bracket',
+          teams: [team('A'), team('B')],
+          games: [],
+          result: {
+            winner_team: null,
+            games_won: [0, 0],
+            reason: 'forfeit',
+            forfeits: [
+              { team: 0, reason: 'startup_timeout' },
+              { team: 1, reason: 'build_failed' },
+            ],
+          },
+        },
+      ],
+    ]);
+    const rounds = groupBracketByRound(doubleForfeit);
+    expect(eliminationSequence(rounds, matches)).toEqual([]);
+  });
+
   it('falls back to one-sided for the 4-team bracket and still sequences correctly', () => {
     const fourTeamBracket: BracketMatch[] = [
       bm('Round 1', 0, 'A', 'B', 'A', false, 'r1-0'),

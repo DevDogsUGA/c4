@@ -20,7 +20,7 @@
 // sceneDescriptor.ts, showSync.ts, ...) IS tested.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { loadTournamentDataFromDir, type TournamentData } from './records.js';
+import { loadTournamentDataFromBundleUrl, loadTournamentDataFromDir, type TournamentData } from './records.js';
 import { buildShowScript } from './show.js';
 import { useShowController } from './useShowController.js';
 import { Loader } from './Loader.js';
@@ -39,6 +39,8 @@ export function App({ popup = false }: { popup?: boolean }) {
   const [data, setData] = useState<TournamentData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [dirParam] = useState(() => new URLSearchParams(window.location.search).get('dir'));
+  /** A tournament-bundle URL (typically an R2 presigned URL, cross-origin) -- the single-file loading mode alongside `?dir=`. */
+  const [bundleParam] = useState(() => new URLSearchParams(window.location.search).get('bundle'));
   /** Primary window only: flips to 'stage' when the show is launched. */
   const [mode, setMode] = useState<'control' | 'stage'>('control');
 
@@ -53,10 +55,17 @@ export function App({ popup = false }: { popup?: boolean }) {
       .catch((err: unknown) => setError(err instanceof Error ? err.message : String(err)));
   }, [dirParam]);
 
-  // Popup without ?dir= (picker case): the data lives only in the primary
-  // window -- request it over the channel.
   useEffect(() => {
-    if (!popup || dirParam) return;
+    if (!bundleParam) return;
+    loadTournamentDataFromBundleUrl(bundleParam)
+      .then(setData)
+      .catch((err: unknown) => setError(err instanceof Error ? `Failed to load bundle: ${err.message}` : String(err)));
+  }, [bundleParam]);
+
+  // Popup without ?dir=/?bundle= (picker case): the data lives only in the
+  // primary window -- request it over the channel.
+  useEffect(() => {
+    if (!popup || dirParam || bundleParam) return;
     const channel = new BroadcastChannel(SHOW_SYNC_CHANNEL);
     function onMessage(event: MessageEvent): void {
       if (isShowSyncMessage(event.data) && event.data.type === 'data') {
@@ -69,7 +78,7 @@ export function App({ popup = false }: { popup?: boolean }) {
       channel.removeEventListener('message', onMessage);
       channel.close();
     };
-  }, [popup, dirParam]);
+  }, [popup, dirParam, bundleParam]);
 
   const scenes = useMemo(() => (data ? buildShowScript(data) : null), [data]);
   const descriptors = useMemo(() => (scenes ? describeScenes(scenes) : null), [scenes]);
@@ -203,7 +212,7 @@ export function App({ popup = false }: { popup?: boolean }) {
           <p className="mt-8 font-mono text-sm uppercase tracking-widest text-graphite">
             Connecting to the stage window&hellip;
           </p>
-        ) : !dirParam ? (
+        ) : !dirParam && !bundleParam ? (
           <Loader onLoad={setData} />
         ) : (
           <p className="mt-8 text-steel">Loading tournament data&hellip;</p>

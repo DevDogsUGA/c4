@@ -4,7 +4,14 @@
 // before the rest of the app ever sees it. No other input format is
 // accepted.
 
-import { MatchRecordSchema, TournamentSummarySchema, type MatchRecord, type TournamentSummary } from '@acm-uga/c4-contract';
+import {
+  MatchRecordSchema,
+  TournamentBundleSchema,
+  TournamentSummarySchema,
+  type MatchRecord,
+  type TournamentBundle,
+  type TournamentSummary,
+} from '@acm-uga/c4-contract';
 
 export interface TournamentData {
   summary: TournamentSummary;
@@ -63,6 +70,37 @@ export function parseTournamentSummary(raw: unknown, source: string): Tournament
     throw new RecordValidationError(source, result.error.message);
   }
   return result.data;
+}
+
+/**
+ * Parses+validates a single-file tournament bundle's already-JSON.parsed
+ * contents (the contract's TournamentBundleSchema: `{ format, version,
+ * summary, matches, provenance? }`) -- the whole tournament the engine
+ * uploads to R2 as one file, loaded either by URL (`?bundle=`) or a single
+ * file from the picker. `provenance` is free-form and never read here.
+ */
+export function parseTournamentBundle(raw: unknown, source: string): TournamentBundle {
+  const result = TournamentBundleSchema.safeParse(raw);
+  if (!result.success) {
+    throw new RecordValidationError(source, result.error.message);
+  }
+  return result.data;
+}
+
+/** A parsed bundle, reshaped to the same `TournamentData` shape the rest of the app (show.ts, etc.) already consumes -- `format`/`version`/`provenance` are load-time-only concerns. */
+export function tournamentDataFromBundle(bundle: TournamentBundle): TournamentData {
+  return { summary: bundle.summary, matches: bundle.matches };
+}
+
+/**
+ * Fetches and validates a single bundle file from `url` (e.g. the `?bundle=`
+ * query param -- typically an R2 presigned URL, cross-origin, hence a plain
+ * `fetch` rather than anything origin-relative like `loadTournamentDataFromDir`).
+ */
+export async function loadTournamentDataFromBundleUrl(url: string): Promise<TournamentData> {
+  const raw = await fetchJson(url);
+  const bundle = parseTournamentBundle(raw, url);
+  return tournamentDataFromBundle(bundle);
 }
 
 /**

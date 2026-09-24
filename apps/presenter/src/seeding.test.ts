@@ -106,7 +106,7 @@ describe('marqueeLines', () => {
   it('handles a forfeit match (0-0 games) without throwing', () => {
     const forfeited = match('Alpha', 'Bravo', 0, [0, 0]);
     forfeited.result.reason = 'forfeit';
-    forfeited.result.forfeit_detail = { team: 1, reason: 'startup_timeout' };
+    forfeited.result.forfeits = [{ team: 1, reason: 'startup_timeout' }];
     expect(marqueeLines([forfeited])).toEqual(['Alpha def. Bravo 0-0']);
   });
 
