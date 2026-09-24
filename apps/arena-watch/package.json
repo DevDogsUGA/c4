@@ -1,0 +1,26 @@
+{
+  "name": "@acm-uga/c4-arena-watch",
+  "version": "1.0.0",
+  "description": "Polls the team roster, watches for new commits, and drives validation + result reporting during the event",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "c4-arena-watch": "./dist/index.js"
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc",
+    "start": "node ./dist/index.js",
+    "test": "vitest run"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}

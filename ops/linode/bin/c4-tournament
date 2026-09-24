@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+# Run the full tournament from the latest freeze, produce the single-file
+# bundle, upload it to R2, and print both the presenter URL (fetches the
+# bundle straight from R2 via a presigned GET) and the scp fallback command
+# (for when the venue has no outbound internet to the projector machine).
+#
+# Usage: c4-tournament [lock-file]
+#   Defaults to /var/lib/c4/locks/latest.json (see c4-freeze).
+set -euo pipefail
+
+ENV_FILE=/etc/c4/env
+if [ -r "$ENV_FILE" ]; then
+  set -a
+  # shellcheck disable=SC1090
+  . "$ENV_FILE"
+  set +a
+fi
+
+: "${C4_ENGINE_BIN:?C4_ENGINE_BIN must be set in /etc/c4/env}"
+
+STATE_DIR=${C4_STATE_DIR:-/var/lib/c4}
+LOCK_DIR="$STATE_DIR/locks"
+RUN_DIR_BASE="$STATE_DIR/tournaments"
+mkdir -p "$RUN_DIR_BASE"
+
+LOCK_FILE=${1:-"$LOCK_DIR/latest.json"}
+if [ ! -e "$LOCK_FILE" ]; then
+  echo "FATAL: lock file not found: $LOCK_FILE (run c4-freeze first)" >&2
+  exit 1
+fi
+# Resolve the symlink so we log the real filename.
+LOCK_FILE=$(readlink -f "$LOCK_FILE")
+
+STAMP=$(date -u +%Y%m%dT%H%M%SZ)
+OUT_DIR="$RUN_DIR_BASE/run-$STAMP"
+BUNDLE_FILE="$OUT_DIR/bundle.json"
+mkdir -p "$OUT_DIR"
+
+echo "== c4-tournament: $(date -u +%FT%TZ) =="
+echo "Lock: $LOCK_FILE"
+echo "Output: $OUT_DIR"
+
+RUN_ARGS=(run-tournament
+  --roster "$STATE_DIR/roster.json"
+  --lock "$LOCK_FILE"
+  --output "$OUT_DIR"
+  --bundle "$BUNDLE_FILE"
+)
+
+if [ -n "${R2_ACCOUNT_ID:-}" ] && [ -n "${R2_ACCESS_KEY_ID:-}" ] && [ -n "${R2_SECRET_ACCESS_KEY:-}" ] && [ -n "${R2_BUCKET:-}" ]; then
+  RUN_ARGS+=(--upload-r2)
+else
+  echo "WARN: R2_* not fully configured in /etc/c4/env -- running without --upload-r2 (bundle stays local only)." >&2
+fi
+
+echo "-- node $C4_ENGINE_BIN ${RUN_ARGS[*]} --"
+OUTPUT=$(node "$C4_ENGINE_BIN" "${RUN_ARGS[@]}" | tee "$OUT_DIR/run.log")
+
+PRESIGNED_URL=$(echo "$OUTPUT" | grep -Eo 'https://[^[:space:]]+' | tail -1 || true)
+
+echo
+echo "== Tournament complete =="
+echo "Bundle: $BUNDLE_FILE"
+
+PRESENTER_ORIGIN=${PRESENTER_ORIGIN:-http://localhost:5173}
+
+if [ -n "$PRESIGNED_URL" ]; then
+  ENCODED_URL=$(printf '%s' "$PRESIGNED_URL" | jq -sRr @uri)
+  echo
+  echo "Presenter URL (R2):"
+  echo "  ${PRESENTER_ORIGIN%/}/?bundle=${ENCODED_URL}"
+else
+  echo
+  echo "No presigned URL captured (R2 upload skipped or failed) -- use the scp fallback below."
+fi
+
+echo
+echo "scp fallback (copy the bundle to the projector machine, then use the presenter's folder picker):"
+echo "  scp c4@<this-box-ip>:$BUNDLE_FILE ~/Downloads/"
+echo "  # then open ${PRESENTER_ORIGIN%/}/ and pick the downloaded bundle.json"
