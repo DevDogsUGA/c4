@@ -6,6 +6,11 @@
 import type { GameRecord, MatchRecord, TeamSlot, TournamentBundle } from '@acm-uga/c4-contract';
 import type { MaterializedSample } from './materialize.js';
 
+/** `expect.reason` may list alternatives, e.g. "crash_loop|clock_expired" (a crash-looping bot can drain its clock before hitting the restart cap). */
+function reasonMatches(expected: string | undefined, actual: string): boolean {
+  return !expected || expected.split('|').includes(actual);
+}
+
 export interface ExpectationCheck {
   slug: string;
   teamName: string;
@@ -61,7 +66,7 @@ function checkOne(sample: MaterializedSample, matches: MatchRecord[]): Expectati
     case 'match_forfeit': {
       const hit = teamMatches.some((m) => {
         const slot = matchesTeam(m, teamName);
-        return m.result.forfeits?.some((f) => f.team === slot && (!reason || f.reason === reason));
+        return m.result.forfeits?.some((f) => f.team === slot && reasonMatches(reason, f.reason));
       });
       return { ...base, ok: hit, detail: hit ? 'match forfeit occurred' : 'no match forfeit for this team' };
     }
@@ -77,10 +82,10 @@ function checkOne(sample: MaterializedSample, matches: MatchRecord[]): Expectati
         const slot = matchesTeam(m, teamName);
         return m.games.some((g) => {
           const player = playerForSlot(g, slot);
-          if (g.outcome.type === 'forfeit' && g.outcome.forfeited_player === player && (!reason || g.outcome.reason === reason)) {
+          if (g.outcome.type === 'forfeit' && g.outcome.forfeited_player === player && reasonMatches(reason, g.outcome.reason)) {
             return true;
           }
-          return g.clock_events.some((e) => e.type === 'forfeit' && e.player === player && (!reason || e.reason === reason));
+          return g.clock_events.some((e) => e.type === 'forfeit' && e.player === player && reasonMatches(reason, e.reason));
         });
       });
       return { ...base, ok: hit, detail: hit ? 'game forfeit occurred' : 'no game forfeit for this team' };
