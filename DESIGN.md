@@ -157,7 +157,9 @@ packages/
   contract/       # bot API types/schemas + game-record schema. The spec, as code.
   board-ui/       # framework-free DOM/canvas board renderer, shared by presenter
                   # and testground
-  generate-fixtures/  # synthesizes plausible tournament records for presenter dev
+  samples/        # private sample bots run through the real Docker/match-engine
+                  # path (materialize -> tournament -> validate -> bundle);
+                  # see samples/<slug>/ at the repo root for the bot files
 ```
 
 **Public repo** (deliberately boring; lives at `../c4-hackathon`): `templates/`

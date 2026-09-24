@@ -1,0 +1,8 @@
+{
+  "name": "Log Spam Node",
+  "template": "node",
+  "members": ["Sample Bot"],
+  "expect": { "kind": "normal", "notes": "tier-3 resource abuse: writes megabytes of log lines per move. Build-only until the hardened engine's log caps land; never run outside it." },
+  "requiresHardenedEngine": true,
+  "strength": 1
+}

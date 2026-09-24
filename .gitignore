@@ -38,3 +38,11 @@ yarn-error.log*
 
 # Wrangler local state
 .wrangler/
+
+# packages/samples: cached template clone, materialized sample work dirs,
+# and rehearsal/run output (roster/lock/bundle/provenance). Never commit
+# private sample bot output.
+.c4-template-cache/
+.c4-samples-work/
+.c4-samples-out/
+.c4-checkouts/

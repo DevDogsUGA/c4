@@ -1,0 +1,8 @@
+{
+  "name": "Disk Fill Go",
+  "template": "go",
+  "members": ["Sample Bot"],
+  "expect": { "kind": "normal", "notes": "tier-3 resource abuse: writes to disk until it fills up. Build-only until the hardened engine (read-only-ish FS, capped tmpfs) lands; never run outside it." },
+  "requiresHardenedEngine": true,
+  "strength": 1
+}

@@ -1,0 +1,8 @@
+{
+  "name": "Wrong Port Python",
+  "template": "python",
+  "members": ["Sample Bot"],
+  "expect": { "kind": "match_forfeit", "reason": "startup_timeout", "notes": "custom minimal server; listens on a hardcoded wrong port, ignoring $PORT, so /health is never reachable" },
+  "allowPlumbing": true,
+  "strength": 0
+}

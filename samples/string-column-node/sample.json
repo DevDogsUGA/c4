@@ -1,0 +1,7 @@
+{
+  "name": "String Column Node",
+  "template": "node",
+  "members": ["Sample Bot"],
+  "expect": { "kind": "game_forfeit", "reason": "invalid_move", "notes": "returns the column as a string, not a number" },
+  "strength": 1
+}

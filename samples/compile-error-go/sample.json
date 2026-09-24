@@ -1,0 +1,7 @@
+{
+  "name": "Compile Error Go",
+  "template": "go",
+  "members": ["Sample Bot"],
+  "expect": { "kind": "build_failed", "notes": "a syntax error; the frozen commit's Docker image fails to build" },
+  "strength": 0
+}

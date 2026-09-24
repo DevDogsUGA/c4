@@ -1,0 +1,7 @@
+{
+  "name": "Full Column Python",
+  "template": "python",
+  "members": ["Sample Bot"],
+  "expect": { "kind": "game_forfeit", "reason": "invalid_move", "notes": "always answers with a full/illegal column" },
+  "strength": 1
+}

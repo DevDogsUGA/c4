@@ -1,0 +1,7 @@
+{
+  "name": "Out Of Range Go",
+  "template": "go",
+  "members": ["Sample Bot"],
+  "expect": { "kind": "game_forfeit", "reason": "invalid_move", "notes": "always answers column 99, out of the 0-7 range" },
+  "strength": 1
+}

@@ -1,0 +1,7 @@
+{
+  "name": "AlphaBeta Go",
+  "template": "go",
+  "members": ["Sample Bot"],
+  "expect": { "kind": "normal", "notes": "alpha-beta depth ~7 with move ordering; top tier" },
+  "strength": 9
+}

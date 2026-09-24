@@ -1,0 +1,7 @@
+{
+  "name": "Minimax TypeScript",
+  "template": "typescript",
+  "members": ["Sample Bot"],
+  "expect": { "kind": "normal", "notes": "minimax depth 4 with a heuristic; upper-mid tier" },
+  "strength": 6
+}

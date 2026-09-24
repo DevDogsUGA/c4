@@ -1,0 +1,7 @@
+{
+  "name": "Crashy Node",
+  "template": "node",
+  "members": ["Sample Bot"],
+  "expect": { "kind": "game_forfeit", "reason": "invalid_move", "notes": "throws on some boards; the server's 500 response is a non-200, i.e. invalid_move" },
+  "strength": 1
+}

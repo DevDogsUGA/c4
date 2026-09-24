@@ -1,0 +1,7 @@
+{
+  "name": "Checkout Fail Team",
+  "template": "python",
+  "members": ["Sample Bot"],
+  "expect": { "kind": "checkout_failed", "notes": "roster.ts points this team at a repo path that doesn't exist; the freeze/checkout step fails before any build is attempted" },
+  "strength": 0
+}
