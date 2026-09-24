@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+# T-30 / T-15 / T-5 check: refresh the roster, validate every team
+# (checkout -> build -> health -> smoke), post each result to the registry,
+# print a summary table, and post a summary to Discord.
+#
+# Usage: c4-tminus [label]
+#   e.g. c4-tminus "T-30"
+set -euo pipefail
+
+HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+LABEL=${1:-"validation run"}
+
+ENV_FILE=/etc/c4/env
+if [ -r "$ENV_FILE" ]; then
+  set -a
+  # shellcheck disable=SC1090
+  . "$ENV_FILE"
+  set +a
+fi
+
+: "${WORKER_URL:?WORKER_URL must be set in /etc/c4/env}"
+: "${RESULTS_TOKEN:?RESULTS_TOKEN must be set in /etc/c4/env}"
+: "${C4_ENGINE_BIN:?C4_ENGINE_BIN must be set in /etc/c4/env}"
+
+STATE_DIR=${C4_STATE_DIR:-/var/lib/c4}
+mkdir -p "$STATE_DIR"
+ROSTER_JSON="$STATE_DIR/roster.json"
+
+echo "== c4-tminus: $LABEL ($(date -u +%FT%TZ)) =="
+
+"$HERE/c4-roster"
+
+if [ ! -s "$ROSTER_JSON" ]; then
+  echo "FATAL: no roster available at $ROSTER_JSON" >&2
+  exit 1
+fi
+
+echo "-- running validate --json against $(jq '.teams | length' "$ROSTER_JSON") teams --"
+RESULTS_JSON=$(node "$C4_ENGINE_BIN" validate --roster "$ROSTER_JSON" --json)
+echo "$RESULTS_JSON" > "$STATE_DIR/validate-$(date -u +%Y%m%dT%H%M%SZ).json"
+
+pass_count=$(echo "$RESULTS_JSON" | jq '[.[] | select(.ok)] | length')
+fail_count=$(echo "$RESULTS_JSON" | jq '[.[] | select(.ok | not)] | length')
+total=$(echo "$RESULTS_JSON" | jq 'length')
+
+echo "-- posting each result to $WORKER_URL/api/results --"
+echo "$RESULTS_JSON" | jq -c '.[]' | while IFS= read -r row; do
+  now=$(date -u +%FT%TZ)
+  status=$(echo "$row" | jq -r 'if .ok then "passed" else "failed" end')
+  payload=$(echo "$row" | jq -c --arg status "$status" --arg at "$now" \
+    '{repo_url, commit, status: $status, stage, detail, at: $at}')
+  curl -fsS --max-time 15 -X POST \
+    -H "Authorization: Bearer $RESULTS_TOKEN" \
+    -H "Content-Type: application/json" \
+    -d "$payload" \
+    "${WORKER_URL%/}/api/results" \
+    >/dev/null || echo "WARN: failed to post result for $(echo "$row" | jq -r .team)" >&2
+done
+
+echo
+echo "== Summary: $LABEL =="
+printf '%-24s %-8s %-10s %-8s %s\n' "TEAM" "OK" "STAGE" "MS" "DETAIL"
+echo "$RESULTS_JSON" | jq -r '.[] | [.team, (if .ok then "OK" else "FAIL" end), .stage, (.ms|tostring), (.detail // "")] | @tsv' \
+  | while IFS=$'\t' read -r team ok stage ms detail; do
+      printf '%-24s %-8s %-10s %-8s %s\n' "$team" "$ok" "$stage" "$ms" "$detail"
+    done
+
+echo
+echo "$pass_count/$total passed, $fail_count failed."
+
+if [ -n "${DISCORD_WEBHOOK_URL:-}" ]; then
+  fails=$(echo "$RESULTS_JSON" | jq -r '[.[] | select(.ok | not) | .team] | join(", ")')
+  content="**$LABEL**: $pass_count/$total teams passed validation."
+  if [ -n "$fails" ]; then
+    content="$content Failing: $fails"
+  fi
+  curl -fsS --max-time 10 -X POST \
+    -H "Content-Type: application/json" \
+    -d "$(jq -n --arg content "$content" '{content: $content}')" \
+    "$DISCORD_WEBHOOK_URL" >/dev/null || echo "WARN: discord post failed" >&2
+fi
+
+if [ "$fail_count" -gt 0 ]; then
+  exit 1
+fi

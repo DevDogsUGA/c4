@@ -1,0 +1,143 @@
+#!/usr/bin/env bash
+# Fetch the roster from the registry Worker AND the Apps Script backup, diff
+# them, and save the winner to roster.json. This is what the T-30/T-15/T-5
+# validate runs (c4-tminus) and the freeze/tournament scripts use as their
+# source of truth.
+#
+# Usage:
+#   c4-roster                          # fetch worker + backup, diff, save
+#   c4-roster --source worker          # skip the diff, just save the worker's roster
+#   c4-roster --source backup          # skip the diff, just save the backup's roster
+#   c4-roster --source csv <file>      # import a manual CSV export (last-resort fallback)
+#
+# Output: /var/lib/c4/roster.json (JSON, shape { "teams": [...] })
+# Also writes /var/lib/c4/roster.csv (repo_url,commit placeholder columns
+# stripped -- just team_name,repo_url) for tools that only take a CSV.
+set -euo pipefail
+
+ENV_FILE=/etc/c4/env
+if [ -r "$ENV_FILE" ]; then
+  set -a
+  # shellcheck disable=SC1090
+  . "$ENV_FILE"
+  set +a
+fi
+
+: "${WORKER_URL:?WORKER_URL must be set in /etc/c4/env}"
+: "${C4_ROSTER_TOKEN:?C4_ROSTER_TOKEN must be set in /etc/c4/env}"
+
+OUT_DIR=${C4_STATE_DIR:-/var/lib/c4}
+mkdir -p "$OUT_DIR"
+ROSTER_JSON="$OUT_DIR/roster.json"
+ROSTER_CSV="$OUT_DIR/roster.csv"
+
+source_mode="diff"
+csv_file=""
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --source)
+      source_mode="$2"
+      shift 2
+      if [ "$source_mode" = "csv" ]; then
+        csv_file="$1"
+        shift
+      fi
+      ;;
+    *)
+      echo "unknown argument: $1" >&2
+      exit 1
+      ;;
+  esac
+done
+
+fetch_worker() {
+  curl -fsS --max-time 15 \
+    -H "Authorization: Bearer $C4_ROSTER_TOKEN" \
+    "${WORKER_URL%/}/api/roster"
+}
+
+fetch_backup() {
+  : "${BACKUP_ROSTER_URL:?BACKUP_ROSTER_URL must be set in /etc/c4/env}"
+  local sep="?"
+  case "$BACKUP_ROSTER_URL" in *\?*) sep="&" ;; esac
+  curl -fsS --max-time 15 "${BACKUP_ROSTER_URL}${sep}token=${C4_ROSTER_TOKEN}"
+}
+
+csv_to_json() {
+  # team_name,repo_url[,members...] -> { teams: [{ team_name, repo_url, members }] }
+  jq -R -s '
+    split("\n") | map(select(length > 0)) |
+    (.[0] | test("^\\s*(team_?name|repo)"; "i")) as $has_header |
+    (if $has_header then .[1:] else . end) |
+    map(split(",")) |
+    map({
+      id: (.[1] // ""),
+      team_name: (.[0] // ""),
+      repo_url: (.[1] // ""),
+      members: ((.[2:] // []) | map(select(length > 0))),
+      submitter_email: "",
+      updated_at: ""
+    }) | { teams: . }
+  ' < "$1"
+}
+
+case "$source_mode" in
+  csv)
+    if [ -z "$csv_file" ] || [ ! -r "$csv_file" ]; then
+      echo "c4-roster --source csv <file>: file missing or unreadable: $csv_file" >&2
+      exit 1
+    fi
+    csv_to_json "$csv_file" > "$ROSTER_JSON"
+    echo "Imported roster from CSV: $csv_file"
+    ;;
+  worker)
+    fetch_worker > "$ROSTER_JSON"
+    echo "Saved roster from worker."
+    ;;
+  backup)
+    fetch_backup > "$ROSTER_JSON"
+    echo "Saved roster from backup."
+    ;;
+  diff)
+    worker_json=$(fetch_worker) || { echo "WARN: worker roster fetch failed" >&2; worker_json=""; }
+    backup_json=$(fetch_backup) || { echo "WARN: backup roster fetch failed" >&2; backup_json=""; }
+
+    if [ -z "$worker_json" ] && [ -z "$backup_json" ]; then
+      echo "FATAL: both worker and backup roster fetches failed" >&2
+      exit 1
+    fi
+
+    if [ -n "$worker_json" ] && [ -n "$backup_json" ]; then
+      worker_ids=$(echo "$worker_json" | jq -r '.teams[].repo_url' | sort)
+      backup_ids=$(echo "$backup_json" | jq -r '.teams[].repo_url' | sort)
+      missing_in_backup=$(comm -23 <(echo "$worker_ids") <(echo "$backup_ids"))
+      missing_in_worker=$(comm -13 <(echo "$worker_ids") <(echo "$backup_ids"))
+      if [ -n "$missing_in_backup" ]; then
+        echo "WARN: teams in worker roster but missing from backup:" >&2
+        echo "$missing_in_backup" | sed 's/^/  /' >&2
+      fi
+      if [ -n "$missing_in_worker" ]; then
+        echo "WARN: teams in backup roster but missing from worker:" >&2
+        echo "$missing_in_worker" | sed 's/^/  /' >&2
+      fi
+      echo "$worker_json" > "$ROSTER_JSON"
+      echo "Saved roster from worker (primary); diffed against backup above."
+    elif [ -n "$worker_json" ]; then
+      echo "$worker_json" > "$ROSTER_JSON"
+      echo "WARN: backup unavailable, saved roster from worker only." >&2
+    else
+      echo "$backup_json" > "$ROSTER_JSON"
+      echo "WARN: worker unavailable, saved roster from backup only." >&2
+    fi
+    ;;
+  *)
+    echo "unknown --source: $source_mode (want worker|backup|csv)" >&2
+    exit 1
+    ;;
+esac
+
+jq -r '.teams[] | [.team_name, .repo_url] | @csv' "$ROSTER_JSON" > "$ROSTER_CSV" 2>/dev/null || true
+
+team_count=$(jq '.teams | length' "$ROSTER_JSON")
+echo "Roster: $team_count teams -> $ROSTER_JSON (and $ROSTER_CSV)"

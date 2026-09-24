@@ -1,0 +1,41 @@
+# Canonical copy of the unit cloud-init.yaml installs at
+# /etc/systemd/system/c4-watch.service. Kept here too so it's reviewable and
+# diffable without decoding YAML, and so a hotfix to the unit itself can be
+# applied by hand:
+#
+#   sudo install -m 0644 ops/linode/systemd/c4-watch.service /etc/systemd/system/c4-watch.service
+#   sudo systemctl daemon-reload
+#   sudo systemctl restart c4-watch.service
+#
+# If you edit this file, also update the write_files entry in cloud-init.yaml
+# so future provisions stay in sync.
+
+[Unit]
+Description=C4 arena-watch: poll roster, build+smoke-test new commits
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=simple
+User=c4
+Group=c4
+EnvironmentFile=/etc/c4/env
+WorkingDirectory=/opt/c4/c4/apps/arena-watch
+ExecStart=/usr/bin/node /opt/c4/c4/apps/arena-watch/dist/index.js
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=c4-watch
+
+# Modest hardening -- outbound-only network service running as an
+# unprivileged user, but still touches the docker socket transitively via
+# the engine CLI it shells out to, so we don't sandbox the filesystem beyond
+# ProtectHome.
+NoNewPrivileges=true
+ProtectHome=read-only
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target
