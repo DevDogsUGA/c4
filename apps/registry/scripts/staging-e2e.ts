@@ -30,6 +30,11 @@
  *   POLL_INTERVAL_MS - default 2000
  */
 
+/** Accepts either `entry.123` or a bare `123` (as read off the form page). */
+function entryName(v: string): string {
+  return /^\d+$/.test(v) ? `entry.${v}` : v;
+}
+
 function requireEnv(name: string): string {
   const value = process.env[name];
   if (!value) {
@@ -41,10 +46,10 @@ function requireEnv(name: string): string {
 
 async function main() {
   const formId = requireEnv('STAGING_FORM_ID');
-  const entryTeam = requireEnv('STAGING_ENTRY_TEAM');
-  const entryRepo = requireEnv('STAGING_ENTRY_REPO');
-  const entryMembers = requireEnv('STAGING_ENTRY_MEMBERS');
-  const entryEmail = process.env.STAGING_ENTRY_EMAIL;
+  const entryTeam = entryName(requireEnv('STAGING_ENTRY_TEAM'));
+  const entryRepo = entryName(requireEnv('STAGING_ENTRY_REPO'));
+  const entryMembers = entryName(requireEnv('STAGING_ENTRY_MEMBERS'));
+  const entryEmail = process.env.STAGING_ENTRY_EMAIL ? entryName(process.env.STAGING_ENTRY_EMAIL) : undefined;
   const workerUrl = requireEnv('WORKER_URL').replace(/\/$/, '');
   const rosterToken = requireEnv('ROSTER_TOKEN');
 
@@ -56,7 +61,9 @@ async function main() {
   const runId = Date.now().toString(36);
   const teamName = `staging-e2e-${runId}`;
   const email = entryEmail ? `staging-e2e-${runId}@example.com` : '';
-  const repoUrl = `https://github.com/octocat/Hello-World`; // any reachable public repo
+  // Unique per run: the Worker rejects a repo already claimed by another
+  // response, and earlier runs' rows may still be in the staging roster.
+  const repoUrl = `https://github.com/c4-staging-e2e/run-${runId}`;
   const members = 'Staging Bot A\nStaging Bot B';
 
   console.log(`[staging-e2e] submitting form response as "${teamName}"...`);

@@ -113,6 +113,19 @@ describe('findAnswerByTitle / extractAnswers', () => {
     expect(gs.findAnswerByTitle(items, 'MEMBERS')).toBe('A\nB');
   });
 
+  it('matches the live form\'s titles ("Team Participants", "GitHub Repository URL")', () => {
+    const live = [
+      { title: 'Team Name', response: 'Live Dogs' },
+      { title: 'GitHub Repository URL', response: 'https://github.com/live/bot' },
+      { title: 'Team Participants', response: 'Ann\nBo' },
+    ];
+    expect(gs.extractAnswers(live)).toEqual({
+      teamName: 'Live Dogs',
+      repoUrl: 'https://github.com/live/bot',
+      membersText: 'Ann\nBo',
+    });
+  });
+
   it('returns null when no question matches', () => {
     expect(gs.findAnswerByTitle(items, 'does not exist')).toBeNull();
   });

@@ -78,11 +78,13 @@ function buildFormPayload(opts) {
  * editor doesn't break the script.
  */
 function findAnswerByTitle(itemResponses, titleContains) {
+  var needles = [].concat(titleContains).map(function (n) { return n.toLowerCase(); });
   for (var i = 0; i < itemResponses.length; i++) {
     var title = itemResponses[i].getItem
       ? itemResponses[i].getItem().getTitle()
       : itemResponses[i].title; // shimmed shape in tests
-    if (title && title.toLowerCase().indexOf(titleContains.toLowerCase()) !== -1) {
+    var lower = title ? title.toLowerCase() : '';
+    if (lower && needles.some(function (n) { return lower.indexOf(n) !== -1; })) {
       return itemResponses[i].getResponse ? itemResponses[i].getResponse() : itemResponses[i].response;
     }
   }
@@ -94,7 +96,8 @@ function extractAnswers(itemResponses) {
   return {
     teamName: findAnswerByTitle(itemResponses, 'team name'),
     repoUrl: findAnswerByTitle(itemResponses, 'repo'),
-    membersText: findAnswerByTitle(itemResponses, 'members'),
+    // The live form titles this "Team Participants"; accept either wording.
+    membersText: findAnswerByTitle(itemResponses, ['member', 'participant']),
   };
 }
 
