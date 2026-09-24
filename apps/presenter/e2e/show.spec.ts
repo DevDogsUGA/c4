@@ -1,8 +1,21 @@
-// End-to-end smoke test: replays the ENTIRE rehearsal tournament
-// (fixtures/, served at `?dir=/` because vite's publicDir is repointed
-// there -- see vite.config.ts) exactly the way a host at the event would:
+// End-to-end smoke test: replays the ENTIRE rehearsal tournament exactly
+// the way a host at the event would, in BOTH loading modes the presenter
+// supports (records.ts / App.tsx):
 //
-//   1. load the primary/control window with `?dir=/`,
+//   - `?dir=/` -- a manifest.json + per-match-file directory listing
+//     (fixtures/, served at the site root because vite's publicDir is
+//     repointed there -- see vite.config.ts).
+//   - `?bundle=/tournament.json` -- the single-file tournament-bundle
+//     format (fixtures/tournament.json, also served at the site root),
+//     the engine's single-file R2 export, loaded via `loadTournamentDataFromBundleUrl`.
+//     This fixture is the edge-case bundle: it exercises every match- and
+//     game-level forfeit reason, a double forfeit in both round robin and
+//     the bracket, a bye produced by a double-forfeit walkover, and a
+//     double-forfeit final (no champion) -- see records.test.ts/show.test.ts
+//     for the same fixture's unit coverage.
+//
+// For each mode:
+//   1. load the primary/control window with the query above,
 //   2. click "Launch stage display" -- this window becomes the fullscreen
 //      Pixi stage, and opens a control popup (`?role=control`) that owns
 //      the ShowController and syncs position to the stage over
@@ -21,14 +34,14 @@
 // `preserveDrawingBuffer: false` for performance, so by the time an
 // `evaluate()` round-trip runs, Chromium has already discarded the
 // just-presented backbuffer and any in-page read comes back blank (proven
-// empirically -- see the worktree history for this file). Playwright's
+// empirically during development of this suite). Playwright's
 // `page.screenshot()` instead reads the compositor's last-presented frame,
 // which is what a real host/projector sees. "Settling" between steps waits
 // on two requestAnimationFrame ticks on the stage window -- a real signal
 // that Pixi's `useTick`-driven renderer has repainted after the
 // BroadcastChannel 'state' message lands, not a fixed sleep.
 
-import { test, expect, type Page, type ConsoleMessage } from '@playwright/test';
+import { test, expect, type Page, type BrowserContext, type ConsoleMessage } from '@playwright/test';
 import { PNG } from 'pngjs';
 
 interface Diagnostic {
@@ -43,10 +56,20 @@ interface Diagnostic {
 // justify it right here.
 const ALLOWED_CONSOLE_PATTERNS: RegExp[] = [];
 
-test('replays the full rehearsal tournament end to end with no errors and a live canvas', async ({
-  page,
-  context,
-}) => {
+interface CanvasSignature {
+  notBlank: boolean;
+  distinctColors: number;
+  width: number;
+  height: number;
+}
+
+/**
+ * Loads the presenter at `loadPath`, launches the stage, and steps the
+ * whole show to completion via the control popup's keyboard input,
+ * asserting no console/page errors and a non-blank canvas at every
+ * scene/phase. Shared by both loading-mode tests below.
+ */
+async function runFullShow(page: Page, context: BrowserContext, loadPath: string): Promise<void> {
   const diagnostics: Diagnostic[] = [];
   const positionBox = { current: 'boot' };
 
@@ -72,9 +95,9 @@ test('replays the full rehearsal tournament end to end with no errors and a live
 
   const start = Date.now();
 
-  // --- 1. Load the rehearsal tournament in the primary/control window. ---
-  positionBox.current = 'loading fixture (?dir=/)';
-  await page.goto('/?dir=/');
+  // --- 1. Load the tournament in the primary/control window. ---
+  positionBox.current = `loading fixture (${loadPath})`;
+  await page.goto(loadPath);
 
   const launchButton = page.getByRole('button', { name: 'Launch stage display' });
   await expect(launchButton).toBeEnabled({ timeout: 15_000 });
@@ -91,9 +114,10 @@ test('replays the full rehearsal tournament end to end with no errors and a live
 
   await expect(page.locator('canvas')).toBeVisible({ timeout: 15_000 });
 
-  // The popup has no ?dir= of its own -- it acquires the tournament data
-  // from the stage window over BroadcastChannel (hello -> data) and mounts
-  // its own ShowController. Wait for its first descriptor card to render.
+  // The popup has no ?dir=/?bundle= of its own -- it acquires the
+  // tournament data from the stage window over BroadcastChannel (hello ->
+  // data) and mounts its own ShowController. Wait for its first descriptor
+  // card to render.
   const nowMeta = control.locator('p.text-graphite').first();
   await expect(nowMeta).toHaveText(/Scene \d+ of \d+ · Phase \d+/, { timeout: 15_000 });
   assertNoDiagnostics();
@@ -109,34 +133,6 @@ test('replays the full rehearsal tournament end to end with no errors and a live
     await page.evaluate(
       () => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))),
     );
-  }
-
-  // StagePixi.tsx deliberately holds every scene's children back until
-  // `document.fonts.ready` resolves (so the first frame never measures
-  // text against a fallback font) -- the canvas is a legitimate solid
-  // TOKENS.ink fill until then. So "settled" for the canvas-non-blank
-  // check is bounded polling on the pixel signal itself, not a fixed
-  // sleep: most scenes settle within a frame or two, but the very first
-  // paint can additionally wait on a webfont network fetch.
-  async function waitForNonBlankCanvas(label: string): Promise<CanvasSignature> {
-    let last = await canvasSignature();
-    await expect
-      .poll(
-        async () => {
-          last = await canvasSignature();
-          return last.notBlank;
-        },
-        { message: `stage canvas is blank at ${label}`, timeout: 10_000, intervals: [50, 100, 250, 500] },
-      )
-      .toBe(true);
-    return last;
-  }
-
-  interface CanvasSignature {
-    notBlank: boolean;
-    distinctColors: number;
-    width: number;
-    height: number;
   }
 
   async function canvasSignature(): Promise<CanvasSignature> {
@@ -163,6 +159,27 @@ test('replays the full rehearsal tournament end to end with no errors and a live
     return { notBlank: colors.size > 1, distinctColors: colors.size, width: w, height: h };
   }
 
+  // StagePixi.tsx deliberately holds every scene's children back until
+  // `document.fonts.ready` resolves (so the first frame never measures
+  // text against a fallback font) -- the canvas is a legitimate solid
+  // TOKENS.ink fill until then. So "settled" for the canvas-non-blank
+  // check is bounded polling on the pixel signal itself, not a fixed
+  // sleep: most scenes settle within a frame or two, but the very first
+  // paint can additionally wait on a webfont network fetch.
+  async function waitForNonBlankCanvas(label: string): Promise<CanvasSignature> {
+    let last = await canvasSignature();
+    await expect
+      .poll(
+        async () => {
+          last = await canvasSignature();
+          return last.notBlank;
+        },
+        { message: `stage canvas is blank at ${label}`, timeout: 10_000, intervals: [50, 100, 250, 500] },
+      )
+      .toBe(true);
+    return last;
+  }
+
   // --- 3. Step through the entire show, phase by phase / scene by scene,
   // via the same Space-bar input a host's clicker sends. ---
   await control.bringToFront();
@@ -170,7 +187,7 @@ test('replays the full rehearsal tournament end to end with no errors and a live
   let position = await readPosition();
   const totalScenes = position.total;
   let steps = 0;
-  const maxSteps = 500; // generous ceiling; the rehearsal fixture is ~25 advances
+  const maxSteps = 500; // generous ceiling; either fixture is well under 100 advances
 
   await settle();
   let signature = await waitForNonBlankCanvas(`scene ${position.scene}/${position.total} phase ${position.phase}`);
@@ -204,9 +221,20 @@ test('replays the full rehearsal tournament end to end with no errors and a live
   const elapsedMs = Date.now() - start;
   // eslint-disable-next-line no-console
   console.log(
-    `presenter e2e: ${totalScenes} scenes, ${steps} advance steps, ${(elapsedMs / 1000).toFixed(1)}s total`,
+    `presenter e2e [${loadPath}]: ${totalScenes} scenes, ${steps} advance steps, ${(elapsedMs / 1000).toFixed(1)}s total`,
   );
   expect(elapsedMs, 'full show replay should stay well under the 3-minute budget').toBeLessThan(170_000);
 
   assertNoDiagnostics();
+}
+
+test('replays the full rehearsal tournament end to end (?dir=/ manifest fixtures)', async ({ page, context }) => {
+  await runFullShow(page, context, '/?dir=/');
+});
+
+test('replays the full edge-case tournament bundle end to end (?bundle=/tournament.json)', async ({
+  page,
+  context,
+}) => {
+  await runFullShow(page, context, '/?bundle=/tournament.json');
 });
