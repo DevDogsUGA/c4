@@ -98,13 +98,23 @@ export interface BotProvider {
    * Optional prebuild hook for the submission-freeze workflow: builds
    * (and, for real providers, caches) whatever `start` needs for `repoDir`
    * ahead of time, so the freeze/prepare phase — not match play — is where
-   * checkout/build failures surface. Providers that don't implement this
-   * (e.g. today's DockerBotProvider) simply build on the first `start()`
-   * call as before; callers must treat `prepare` as best-effort optimism,
-   * not a guarantee that `start` will skip building.
+   * checkout/build failures surface. DockerBotProvider implements this: one
+   * build per team per tournament, tagged deterministically from the team
+   * + commit, reused by every subsequent `start()` call for that repoDir.
+   * Providers that don't implement `prepare` simply build on the first
+   * `start()` call as before; callers must treat `prepare` as best-effort
+   * optimism, not a guarantee that `start` will skip building.
    *
    * Throws the same error types `start` does (StartupTimeoutError /
    * ImageBuildError / other) on failure.
    */
   prepare?(repoDir: string): Promise<void>;
+
+  /**
+   * Removes whatever `prepare()` built, best-effort. Never called
+   * automatically by the orchestration layer — a caller opts in (e.g. `c4
+   * run-tournament --cleanup-images`); the default is to keep prepared
+   * images around so a rerun against the same commits is fast.
+   */
+  cleanupPreparedImages?(): Promise<void>;
 }
