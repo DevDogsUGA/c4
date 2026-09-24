@@ -1,0 +1,6 @@
+{
+  "name": "Reference (Rust)",
+  "template": "rust",
+  "expect": { "kind": "normal" },
+  "conformance": true
+}

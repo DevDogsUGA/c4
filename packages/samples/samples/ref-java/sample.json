@@ -1,0 +1,6 @@
+{
+  "name": "Reference (Java)",
+  "template": "java",
+  "expect": { "kind": "normal" },
+  "conformance": true
+}

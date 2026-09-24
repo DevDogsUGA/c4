@@ -1,0 +1,6 @@
+{
+  "name": "Reference (Go)",
+  "template": "go",
+  "expect": { "kind": "normal" },
+  "conformance": true
+}

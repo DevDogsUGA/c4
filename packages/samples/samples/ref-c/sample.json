@@ -1,0 +1,6 @@
+{
+  "name": "Reference (C)",
+  "template": "c",
+  "expect": { "kind": "normal" },
+  "conformance": true
+}

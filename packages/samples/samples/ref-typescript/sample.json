@@ -1,0 +1,6 @@
+{
+  "name": "Reference (TypeScript)",
+  "template": "typescript",
+  "expect": { "kind": "normal" },
+  "conformance": true
+}

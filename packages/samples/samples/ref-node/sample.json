@@ -1,0 +1,6 @@
+{
+  "name": "Reference (Node)",
+  "template": "node",
+  "expect": { "kind": "normal" },
+  "conformance": true
+}
