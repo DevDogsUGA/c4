@@ -1,6 +1,8 @@
 {
-  "name": "Reference (C++)",
+  "name": "Reference Cpp",
   "template": "cpp",
+  "members": ["Reference Bot"],
   "expect": { "kind": "normal" },
+  "strength": 5,
   "conformance": true
 }

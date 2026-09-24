@@ -1,6 +1,8 @@
 {
-  "name": "Reference (Node)",
+  "name": "Reference Node",
   "template": "node",
+  "members": ["Reference Bot"],
   "expect": { "kind": "normal" },
+  "strength": 5,
   "conformance": true
 }

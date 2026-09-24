@@ -1,6 +1,8 @@
 {
-  "name": "Reference (Rust)",
+  "name": "Reference Rust",
   "template": "rust",
+  "members": ["Reference Bot"],
   "expect": { "kind": "normal" },
+  "strength": 5,
   "conformance": true
 }

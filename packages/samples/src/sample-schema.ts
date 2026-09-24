@@ -37,5 +37,12 @@ export const SampleJsonSchema = z.object({
    * hardening lands.
    */
   requiresHardenedEngine: z.boolean().optional(),
+  /**
+   * Marks the 9 `ref-<lang>` cross-language conformance samples (see
+   * packages/samples/src/conformance/). These are otherwise ordinary
+   * normal-expect samples: they're materialized, built, rostered, and
+   * played in the tournament like any other team.
+   */
+  conformance: z.boolean().optional(),
 });
 export type SampleJson = z.infer<typeof SampleJsonSchema>;

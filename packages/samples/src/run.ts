@@ -31,6 +31,8 @@ export interface RunSamplesOptions {
   teams?: number;
   seed?: number;
   thinkMs?: number;
+  /** Max matches run in parallel; forwarded to the engine's `--concurrency`. */
+  concurrency?: number;
 }
 
 export interface RunSamplesResult {
@@ -66,16 +68,16 @@ export async function runSamples(opts: RunSamplesOptions): Promise<RunSamplesRes
     return out;
   });
 
-  // Tier-3 resource-abuse samples are built but never executed outside the
-  // hardened engine (see SAMPLES.md / EVENT_PLAN.md safety note).
-  const runnable = materialized.filter((m) => !m.sample.requiresHardenedEngine);
-  const skipped = materialized.filter((m) => m.sample.requiresHardenedEngine);
-  if (skipped.length > 0) {
-    console.log(`Skipping ${skipped.length} tier-3 sample(s) pending hardened engine: ${skipped.map((s) => s.slug).join(', ')}`);
-  }
-  if (runnable.length === 0) {
-    throw new Error('runSamples: every selected sample requires the hardened engine; nothing left to run');
-  }
+  // Tier-3 resource-abuse samples (requiresHardenedEngine: true) are only
+  // ever safe to execute through the real match-engine CLI, which now
+  // unconditionally starts every bot container with the hardened runtime
+  // (PidsLimit, memory cap + no swap, read-only rootfs + capped tmpfs,
+  // per-container internal network, capped json-file logs — see
+  // apps/match-engine/src/docker/container-runtime.ts). Since runSamples
+  // never shells out to plain `docker run` itself (everything goes through
+  // opts.engineCli, i.e. the real `c4` CLI), it's safe to run them here too.
+  const runnable = materialized;
+  const skipped: MaterializedSample[] = [];
 
   await mkdir(opts.outDir, { recursive: true });
   const rosterPath = path.join(opts.outDir, 'roster.json');
@@ -88,7 +90,7 @@ export async function runSamples(opts: RunSamplesOptions): Promise<RunSamplesRes
 
   await sw.time('freeze', () => opts.engineCli.freeze({ rosterPath, lockPath }));
   await sw.time('run-tournament', () =>
-    opts.engineCli.runTournament({ rosterPath, lockPath, outputDir: opts.outDir, bundlePath, seed: opts.seed, thinkMs }),
+    opts.engineCli.runTournament({ rosterPath, lockPath, outputDir: opts.outDir, bundlePath, seed: opts.seed, thinkMs, concurrency: opts.concurrency }),
   );
 
   const bundle = await sw.time('validate-bundle', async () => {

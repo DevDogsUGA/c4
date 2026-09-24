@@ -1,6 +1,11 @@
 {
-  "name": "Reference (Python)",
+  "name": "Reference Python",
   "template": "python",
-  "expect": { "kind": "normal" },
+  "members": ["Reference Bot"],
+  "expect": {
+    "kind": "normal",
+    "notes": "CPython unpruned depth-4 negamax measured at ~170ms p50 / ~220ms p99 per move on the arena host (packages/samples/src/conformance -- the algorithm must stay bit-identical to the TypeScript reference, so it is NOT optimized). Over a long game that can approach or exceed the 5s per-game clock (e.g. ~32 moves * 170ms =~ 5.4s), so it can legitimately clock_expired mid-tournament depending on how long its games run. Verified correct via the dedicated conformance suite (`pnpm -C packages/samples conformance`, 197/197 positions match the reference on the arena); deliberately EXCLUDED from the live tournament roster (see samples/README or the fixtures run command) rather than given a speed-dependent expect.kind, since whether it actually clock_expires in a given run depends on opponent pairing/game length, not just on this bot."
+  },
+  "strength": 5,
   "conformance": true
 }

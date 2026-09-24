@@ -3,7 +3,7 @@
 // shows up at least once. Fails loudly with a readable table instead of
 // producing a quietly boring tournament.
 
-import type { MatchRecord, TournamentBundle } from '@acm-uga/c4-contract';
+import type { GameRecord, MatchRecord, TeamSlot, TournamentBundle } from '@acm-uga/c4-contract';
 import type { MaterializedSample } from './materialize.js';
 
 export interface ExpectationCheck {
@@ -19,6 +19,20 @@ function matchesTeam(m: MatchRecord, teamName: string): 0 | 1 | -1 {
   if (m.teams[0].name === teamName) return 0;
   if (m.teams[1].name === teamName) return 1;
   return -1;
+}
+
+/**
+ * Which in-game player number (1 or 2) a team slot is THIS game. Player
+ * numbers are not fixed per team across a match: match-runner.ts alternates
+ * (or re-coin-flips, for sudden death) which team slot is `first_player_team`
+ * every game, and game-runner.ts always labels that team's bot "player 1"
+ * for the game (the transports map is built fresh per game around
+ * `firstPlayerTeam`). So the correct mapping is per-game, from
+ * `game.first_player_team` -- never a match-wide `slot === 0 ? 1 : 2`
+ * constant, which is only right for roughly half of any given team's games.
+ */
+function playerForSlot(game: GameRecord, slot: 0 | 1 | -1): 1 | 2 {
+  return (slot as TeamSlot) === game.first_player_team ? 1 : 2;
 }
 
 function checkOne(sample: MaterializedSample, matches: MatchRecord[]): ExpectationCheck {
@@ -52,20 +66,29 @@ function checkOne(sample: MaterializedSample, matches: MatchRecord[]): Expectati
       return { ...base, ok: hit, detail: hit ? 'match forfeit occurred' : 'no match forfeit for this team' };
     }
     case 'game_forfeit': {
+      // The real game-runner (apps/match-engine/src/game-runner.ts) records
+      // a game-ending forfeit only in `game.outcome` (type: 'forfeit',
+      // forfeited_player, reason) -- it never pushes a matching entry into
+      // `clock_events`, even though the contract schema's ClockEventSchema
+      // union would allow one. Check outcome (the field that's actually
+      // populated), and also accept a clock_events forfeit entry for
+      // forward-compat if a future engine version starts emitting both.
       const hit = teamMatches.some((m) => {
         const slot = matchesTeam(m, teamName);
-        const player = slot === 0 ? 1 : 2;
-        return m.games.some((g) =>
-          g.clock_events.some((e) => e.type === 'forfeit' && e.player === player && (!reason || e.reason === reason)),
-        );
+        return m.games.some((g) => {
+          const player = playerForSlot(g, slot);
+          if (g.outcome.type === 'forfeit' && g.outcome.forfeited_player === player && (!reason || g.outcome.reason === reason)) {
+            return true;
+          }
+          return g.clock_events.some((e) => e.type === 'forfeit' && e.player === player && (!reason || e.reason === reason));
+        });
       });
       return { ...base, ok: hit, detail: hit ? 'game forfeit occurred' : 'no game forfeit for this team' };
     }
     case 'restarts': {
       const hit = teamMatches.some((m) => {
         const slot = matchesTeam(m, teamName);
-        const player = slot === 0 ? 1 : 2;
-        return m.games.some((g) => g.clock_events.some((e) => e.type === 'restart' && e.player === player));
+        return m.games.some((g) => g.clock_events.some((e) => e.type === 'restart' && e.player === playerForSlot(g, slot)));
       });
       return { ...base, ok: hit, detail: hit ? 'a restart event occurred' : 'no restart event for this team' };
     }
@@ -94,8 +117,17 @@ export interface CoverageCheck {
  */
 export function checkFailStateCoverage(bundle: TournamentBundle): CoverageCheck[] {
   const matches = bundle.matches;
+  // See the comment on playerForSlot/game_forfeit in checkOne: the real
+  // engine records a game forfeit's reason in `game.outcome`, not
+  // `clock_events`. Pull from both so this stays correct if a future
+  // engine version starts populating clock_events too.
   const gameForfeitReasons = new Set(
-    matches.flatMap((m) => m.games.flatMap((g) => g.clock_events.filter((e) => e.type === 'forfeit').map((e) => e.reason))),
+    matches.flatMap((m) =>
+      m.games.flatMap((g) => [
+        ...(g.outcome.type === 'forfeit' ? [g.outcome.reason] : []),
+        ...g.clock_events.filter((e) => e.type === 'forfeit').map((e) => e.reason),
+      ]),
+    ),
   );
   const matchForfeitReasons = new Set(matches.flatMap((m) => (m.result.forfeits ?? []).map((f) => f.reason)));
   const hasRestart = matches.some((m) => m.games.some((g) => g.clock_events.some((e) => e.type === 'restart')));

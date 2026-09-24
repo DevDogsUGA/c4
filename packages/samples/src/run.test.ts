@@ -66,9 +66,13 @@ class FakeEngineCli implements EngineCli {
               outcome: { type: 'forfeit', winner: 2, forfeited_player: 1, reason: 'clock_expired' },
             },
             {
+              // first_player_team: 0 (Slow) so slot 1 (Crashy) is player 2
+              // this game -- matching forfeited_player: 2 below. Player
+              // numbers are per-game (game-runner.ts always labels
+              // first_player_team's bot "player 1"), not fixed per team.
               game_number: 2,
-              first_player: 2,
-              first_player_team: 1,
+              first_player: 1,
+              first_player_team: 0,
               coin_flip: false,
               moves: [],
               clock_events: [{ type: 'forfeit', player: 2, reason: 'invalid_move', at_move: 1 }],
