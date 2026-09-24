@@ -41,6 +41,7 @@ import {
   STARTING_CLOCK_MS,
   type ClockTick,
 } from '../../clock.js';
+import { describeGameOutcome, describeMatchForfeit, isDoubleForfeit } from '../../forfeitCopy.js';
 import { dualBoardsLayout, matchBannerZone, singleBoardLayout, STAGE_HEIGHT, STAGE_WIDTH, type MatchBoardLayout } from '../layout.js';
 import { coinSpinScaleX, easeOutBack, easeOutCubic, track } from '../timeline.js';
 import { useTimelineRefs } from '../useTimeline.js';
@@ -48,6 +49,16 @@ import { useBoardTexture } from '../BoardTexture.js';
 import { eyebrowTextStyle, headingTextStyle, monoTextStyle, rowTextStyle } from '../textStyles.js';
 import { ParticleField } from '../ParticleField.js';
 import { COIN_TRAIL_CONFIG, LANDING_DUST_CONFIG, WIN_CONFETTI_CONFIG, WINNING_FOUR_SPARK_CONFIG } from '../particles.js';
+
+const STARTING_CLOCK_TEXT = formatClockMs(STARTING_CLOCK_MS);
+
+/** The team-meta line under a name in the matchup header: members (if any) and a bracketed language tag (if any); null when the team has neither (renders nothing -- graceful absence). */
+function teamMetaLine(team: TeamRef): string | null {
+  const parts: string[] = [];
+  if (team.members && team.members.length > 0) parts.push(team.members.join(', '));
+  if (team.language) parts.push(`[${team.language}]`);
+  return parts.length > 0 ? parts.join('  ') : null;
+}
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -82,7 +93,7 @@ function useBoardReplay(params: {
   seatA: 1 | 2;
   clockWindowRef: MutableRefObject<ClockWindow | null>;
   onWinLine: (line: Coord[]) => void;
-  onFinished: () => void;
+  onFinished: (outcome: GameRecord['outcome']) => void;
 }): void {
   const { game, renderer, seatA, clockWindowRef, onWinLine, onFinished } = params;
   const prevGameNumberRef = useRef<number | null>(null);
@@ -129,7 +140,7 @@ function useBoardReplay(params: {
         renderer.highlightWin(line);
         onWinLine(line);
       }
-      onFinished();
+      onFinished(game.outcome);
     })();
 
     return () => {
@@ -168,19 +179,23 @@ function ThinkingIndicator({ x, y, activeRef }: { x: number; y: number; activeRe
 interface BoardPanelProps {
   game: GameRecord;
   board: MatchBoardLayout;
-  teamAName: string;
-  teamBName: string;
+  teamA: TeamRef;
+  teamB: TeamRef;
   seatA: 1 | 2;
   seatB: 1 | 2;
   onWinCentroid: (x: number, y: number) => void;
   onFinished: () => void;
 }
 
-function BoardPanel({ game, board, teamAName, teamBName, seatA, seatB, onWinCentroid, onFinished }: BoardPanelProps) {
+function BoardPanel({ game, board, teamA, teamB, seatA, seatB, onWinCentroid, onFinished }: BoardPanelProps) {
   const handle = useBoardTexture({ size: board.board.w, resolutionScale: 2, dropHand: true, theme: BOARD_THEME });
   const clockWindowRef = useRef<ClockWindow | null>(null);
   const movingA = useRef(false);
   const movingB = useRef(false);
+  // Game-outcome banner (forfeit reason / draw) -- set once per game, on
+  // the replay's `onFinished` boundary, never inside the per-frame tick
+  // below (Iron Rule: no setState in a tick callback).
+  const [outcomeText, setOutcomeText] = useState<string | null>(null);
 
   useBoardReplay({
     game,
@@ -198,8 +213,18 @@ function BoardPanel({ game, board, teamAName, teamBName, seatA, seatB, onWinCent
       );
       onWinCentroid(board.board.x + centroid.x, board.board.y + centroid.y);
     },
-    onFinished,
+    onFinished: (outcome) => {
+      const forfeitedTeamName =
+        outcome.type === 'forfeit' ? (outcome.forfeited_player === seatA ? teamA.name : teamB.name) : null;
+      setOutcomeText(describeGameOutcome(outcome, forfeitedTeamName));
+      onFinished();
+    },
   });
+
+  // Clear the banner the moment a new game starts replaying on this board.
+  useEffect(() => {
+    setOutcomeText(null);
+  }, [game]);
 
   const clockARef = useRef<PixiText | null>(null);
   const clockBRef = useRef<PixiText | null>(null);
@@ -233,38 +258,68 @@ function BoardPanel({ game, board, teamAName, teamBName, seatA, seatB, onWinCent
     }
   });
 
+  const metaA = teamMetaLine(teamA);
+  const metaB = teamMetaLine(teamB);
+
   return (
     <pixiContainer>
       {handle ? <pixiSprite texture={handle.texture} x={board.board.x} y={board.board.y} width={board.board.w} height={board.board.h} /> : null}
 
       <pixiText
-        text={teamAName}
-        style={rowTextStyle({ fontSize: 22, fill: TOKENS.chalk, wordWrap: true, wordWrapWidth: board.clocks.left.w })}
+        text={teamA.name}
+        style={rowTextStyle({ fontSize: 20, fill: TOKENS.chalk, wordWrap: true, wordWrapWidth: board.clocks.left.w })}
         anchor={{ x: 0, y: 0 }}
         x={board.clocks.left.x}
         y={board.clocks.left.y}
       />
-      <ThinkingIndicator x={board.clocks.left.x} y={board.clocks.left.y + 24} activeRef={movingA} />
-      <pixiText ref={clockARef} text="10.000" style={monoTextStyle({ fontSize: 26, fill: TOKENS.steel })} anchor={{ x: 0, y: 0 }} x={board.clocks.left.x} y={board.clocks.left.y + 36} />
+      {metaA ? (
+        <pixiText
+          text={metaA}
+          style={monoTextStyle({ fontSize: 12, fill: TOKENS.steel, align: 'left' })}
+          anchor={{ x: 0, y: 0 }}
+          x={board.clocks.left.x}
+          y={board.clocks.left.y + 22}
+        />
+      ) : null}
+      <ThinkingIndicator x={board.clocks.left.x} y={board.clocks.left.y + 38} activeRef={movingA} />
+      <pixiText ref={clockARef} text={STARTING_CLOCK_TEXT} style={monoTextStyle({ fontSize: 24, fill: TOKENS.steel })} anchor={{ x: 0, y: 0 }} x={board.clocks.left.x} y={board.clocks.left.y + 50} />
 
       <pixiText
-        text={teamBName}
-        style={rowTextStyle({ fontSize: 22, fill: TOKENS.chalk, wordWrap: true, wordWrapWidth: board.clocks.right.w })}
+        text={teamB.name}
+        style={rowTextStyle({ fontSize: 20, fill: TOKENS.chalk, wordWrap: true, wordWrapWidth: board.clocks.right.w })}
         anchor={{ x: 1, y: 0 }}
         x={board.clocks.right.x + board.clocks.right.w}
         y={board.clocks.right.y}
       />
-      <ThinkingIndicator x={board.clocks.right.x + board.clocks.right.w - 28} y={board.clocks.right.y + 24} activeRef={movingB} />
+      {metaB ? (
+        <pixiText
+          text={metaB}
+          style={monoTextStyle({ fontSize: 12, fill: TOKENS.steel, align: 'right' })}
+          anchor={{ x: 1, y: 0 }}
+          x={board.clocks.right.x + board.clocks.right.w}
+          y={board.clocks.right.y + 22}
+        />
+      ) : null}
+      <ThinkingIndicator x={board.clocks.right.x + board.clocks.right.w - 28} y={board.clocks.right.y + 38} activeRef={movingB} />
       <pixiText
         ref={clockBRef}
-        text="10.000"
-        style={monoTextStyle({ fontSize: 26, fill: TOKENS.steel })}
+        text={STARTING_CLOCK_TEXT}
+        style={monoTextStyle({ fontSize: 24, fill: TOKENS.steel })}
         anchor={{ x: 1, y: 0 }}
         x={board.clocks.right.x + board.clocks.right.w}
-        y={board.clocks.right.y + 36}
+        y={board.clocks.right.y + 50}
       />
 
       <pixiText ref={restartRef} text="" style={monoTextStyle({ fontSize: 16, fill: TOKENS.bulldog })} anchor={{ x: 0.5, y: 0 }} x={board.board.x + board.board.w / 2} y={board.board.y + board.board.h + 12} />
+      {outcomeText ? (
+        <pixiText
+          text={outcomeText}
+          style={monoTextStyle({ fontSize: 16, fill: outcomeText === 'DRAW' ? TOKENS.steel : TOKENS.bulldog })}
+          anchor={{ x: 0.5, y: 0 }}
+          x={board.board.x + board.board.w / 2}
+          y={board.board.y + board.board.h + 32}
+        />
+      ) : null}
     </pixiContainer>
   );
 }
@@ -356,7 +411,8 @@ export function MatchStage({ scene, phaseIndex }: { scene: Extract<Scene, { type
   const region = resolveBoardRegion(phases, phaseIndex);
   const isResult = phase.kind === 'result';
   const isCoinflip = phase.kind === 'coinflip';
-  const winnerTeam: TeamRef = match.teams[match.result.winner_team]!;
+  const doubleForfeit = isDoubleForfeit(match);
+  const winnerTeam: TeamRef | null = doubleForfeit ? null : match.teams[match.result.winner_team!]!;
 
   const [sparkPoint, setSparkPoint] = useState<{ x: number; y: number; seed: number } | null>(null);
 
@@ -365,6 +421,10 @@ export function MatchStage({ scene, phaseIndex }: { scene: Extract<Scene, { type
   }
 
   const banner = matchBannerZone();
+
+  const walkoverText = doubleForfeit
+    ? 'DOUBLE FORFEIT — neither team advances.'
+    : `WALKOVER — ${describeMatchForfeit(match)} ${winnerTeam!.name} advances without a game played.`;
 
   return (
     <pixiContainer>
@@ -378,21 +438,21 @@ export function MatchStage({ scene, phaseIndex }: { scene: Extract<Scene, { type
 
       {region.kind === 'walkover' ? (
         <pixiText
-          text={`WALKOVER — ${winnerTeam.name} advances without a game played (forfeit).`}
-          style={rowTextStyle({ fontSize: 28, fill: TOKENS.steel })}
+          text={walkoverText}
+          style={rowTextStyle({ fontSize: 28, fill: doubleForfeit ? TOKENS.bulldog : TOKENS.steel })}
           anchor={{ x: 0.5, y: 0.5 }}
           x={STAGE_WIDTH / 2}
           y={STAGE_HEIGHT / 2}
         />
       ) : region.kind === 'dual' ? (
-        <DualBoards match_id={match.match_id} games={region.games} teamAName={teamA!.name} teamBName={teamB!.name} onWinCentroid={handleWinCentroid} />
+        <DualBoards match_id={match.match_id} games={region.games} teamA={teamA!} teamB={teamB!} onWinCentroid={handleWinCentroid} />
       ) : (
         <BoardPanel
           key={`${match.match_id}-single`}
           game={region.game}
           board={singleBoardLayout()}
-          teamAName={teamA!.name}
-          teamBName={teamB!.name}
+          teamA={teamA!}
+          teamB={teamB!}
           seatA={seatForTeamSlot(region.game, 0)}
           seatB={seatForTeamSlot(region.game, 1)}
           onWinCentroid={handleWinCentroid}
@@ -409,16 +469,31 @@ export function MatchStage({ scene, phaseIndex }: { scene: Extract<Scene, { type
       {isResult ? (
         <>
           <pixiContainer x={banner.x} y={banner.y}>
-            <pixiText text={`${winnerTeam.name.toUpperCase()} WINS`} style={headingTextStyle({ fontSize: 56, fill: TOKENS.bulldog })} anchor={{ x: 0.5, y: 0 }} x={banner.w / 2} y={0} />
-            <pixiText
-              text={`${match.result.games_won[0]}-${match.result.games_won[1]}`}
-              style={monoTextStyle({ fontSize: 20, fill: TOKENS.steel })}
-              anchor={{ x: 0.5, y: 0 }}
-              x={banner.w / 2}
-              y={78}
-            />
+            {winnerTeam ? (
+              <>
+                <pixiText text={`${winnerTeam.name.toUpperCase()} WINS`} style={headingTextStyle({ fontSize: 56, fill: TOKENS.bulldog })} anchor={{ x: 0.5, y: 0 }} x={banner.w / 2} y={0} />
+                <pixiText
+                  text={`${match.result.games_won[0]}-${match.result.games_won[1]}`}
+                  style={monoTextStyle({ fontSize: 20, fill: TOKENS.steel })}
+                  anchor={{ x: 0.5, y: 0 }}
+                  x={banner.w / 2}
+                  y={78}
+                />
+              </>
+            ) : (
+              <>
+                <pixiText text="DOUBLE FORFEIT" style={headingTextStyle({ fontSize: 56, fill: TOKENS.bulldog })} anchor={{ x: 0.5, y: 0 }} x={banner.w / 2} y={0} />
+                <pixiText
+                  text="Neither team advances"
+                  style={monoTextStyle({ fontSize: 20, fill: TOKENS.steel })}
+                  anchor={{ x: 0.5, y: 0 }}
+                  x={banner.w / 2}
+                  y={78}
+                />
+              </>
+            )}
           </pixiContainer>
-          <ParticleField config={WIN_CONFETTI_CONFIG} seed={hashSeed(match.match_id)} active />
+          {winnerTeam ? <ParticleField config={WIN_CONFETTI_CONFIG} seed={hashSeed(match.match_id)} active /> : null}
         </>
       ) : null}
     </pixiContainer>
@@ -429,14 +504,14 @@ export function MatchStage({ scene, phaseIndex }: { scene: Extract<Scene, { type
 function DualBoards({
   match_id,
   games,
-  teamAName,
-  teamBName,
+  teamA,
+  teamB,
   onWinCentroid,
 }: {
   match_id: string;
   games: [GameRecord, GameRecord];
-  teamAName: string;
-  teamBName: string;
+  teamA: TeamRef;
+  teamB: TeamRef;
   onWinCentroid: (x: number, y: number) => void;
 }) {
   const [boardA, boardB] = dualBoardsLayout();
@@ -446,8 +521,8 @@ function DualBoards({
         key={`${match_id}-dual-0`}
         game={games[0]}
         board={boardA}
-        teamAName={teamAName}
-        teamBName={teamBName}
+        teamA={teamA}
+        teamB={teamB}
         seatA={seatForTeamSlot(games[0], 0)}
         seatB={seatForTeamSlot(games[0], 1)}
         onWinCentroid={onWinCentroid}
@@ -457,8 +532,8 @@ function DualBoards({
         key={`${match_id}-dual-1`}
         game={games[1]}
         board={boardB}
-        teamAName={teamAName}
-        teamBName={teamBName}
+        teamA={teamA}
+        teamB={teamB}
         seatA={seatForTeamSlot(games[1], 0)}
         seatB={seatForTeamSlot(games[1], 1)}
         onWinCentroid={onWinCentroid}

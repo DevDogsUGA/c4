@@ -36,13 +36,15 @@ export type Scene =
       type: 'bracket';
       layout: SplitBracket;
       revealedThrough: ReadonlySet<string>;
-      /** The team that just advanced into this bracket state, if any (drives the slide-in/flash cue). */
+      /** The team that just advanced into this bracket state, if any (drives the slide-in/flash cue). Absent for a double-forfeit slot -- nobody advances from it. */
       justAdvanced?: TeamRef;
-      /** The team just eliminated by that same match, if any (drives the tumble-off cue); null for a bye. */
+      /** The team just eliminated by that same match, if any (drives the tumble-off cue); null for a bye or a double forfeit (see `doubleForfeit`). */
       justEliminated?: TeamRef | null;
+      /** True iff the just-decided slot was a double forfeit (both teams forfeited, per the contract's `winner_team: null`) -- both team cards tumble off and the next-round opponent (if any) advances by bye instead. */
+      doubleForfeit?: boolean;
     }
   | { type: 'match'; match: MatchRecord; phases: MatchPhase[]; bracketContext: MatchBracketContext }
-  | { type: 'champion'; team: TeamRef };
+  | { type: 'champion'; team: TeamRef | null };
 
 /**
  * How many discrete phases a host steps through within one scene before
@@ -103,6 +105,7 @@ export function buildShowScript(data: TournamentData): Scene[] {
     scenes.push({ type: 'bracket', layout, revealedThrough: new Set(revealed) });
 
     let champion: TeamRef | null = null;
+    let finalDecided = false;
 
     for (const round of rounds) {
       for (const bracketMatch of round.matches) {
@@ -118,9 +121,19 @@ export function buildShowScript(data: TournamentData): Scene[] {
 
         revealed.add(bracketRevealKey(bracketMatch));
 
+        // A double forfeit (winner_team: null) means BOTH teams are out --
+        // there's no winner to advance and no single loser to tumble; the
+        // bracket scene flags `doubleForfeit` instead so the stage tumbles
+        // both cards. The next-round opponent (if any) advances by bye,
+        // which the summary already encodes directly on that later
+        // BracketMatch (bye: true) -- no extra scene needed here for it.
         const winner = bracketMatch.winner;
-        const loser =
-          winner && bracketMatch.team_a?.name === winner.name ? bracketMatch.team_b : bracketMatch.team_a;
+        const doubleForfeit = winner === null;
+        const loser = winner
+          ? bracketMatch.team_a?.name === winner.name
+            ? bracketMatch.team_b
+            : bracketMatch.team_a
+          : null;
 
         scenes.push({
           type: 'bracket',
@@ -128,13 +141,21 @@ export function buildShowScript(data: TournamentData): Scene[] {
           revealedThrough: new Set(revealed),
           justAdvanced: winner ?? undefined,
           justEliminated: loser ?? null,
+          doubleForfeit: doubleForfeit || undefined,
         });
 
-        if (round.round === finalRoundName && winner) champion = winner;
+        if (round.round === finalRoundName) {
+          finalDecided = true;
+          champion = winner ?? null;
+        }
       }
     }
 
-    if (champion) scenes.push({ type: 'champion', team: champion });
+    // Always show a champion beat once the final has been decided -- even
+    // when it's a double forfeit and there's no champion to name
+    // (ChampionStage renders that distinctly; see forfeitCopy.ts's
+    // isDoubleForfeit for the match-level check this mirrors).
+    if (finalDecided) scenes.push({ type: 'champion', team: champion });
   }
 
   for (const slide of OUTRO_SLIDES) scenes.push({ type: 'slide', slide });

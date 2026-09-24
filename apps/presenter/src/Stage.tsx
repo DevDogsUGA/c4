@@ -21,7 +21,7 @@
 
 import './stage/pixiExtend.js';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { loadTournamentDataFromDir, type TournamentData } from './records.js';
+import { loadTournamentDataFromBundleUrl, loadTournamentDataFromDir, type TournamentData } from './records.js';
 import { buildShowScript, type Scene } from './show.js';
 import { StagePixi } from './stage/StagePixi.js';
 import { SlideStage } from './stage/scenes/SlideStage.js';
@@ -137,10 +137,11 @@ export function StageView({ data }: { data: TournamentData }) {
   );
 }
 
-/** Standalone `?role=stage` window: acquires data via ?dir= or the channel. */
+/** Standalone `?role=stage` window: acquires data via ?dir=, ?bundle=, or the channel. */
 export function StageApp() {
   const [data, setData] = useState<TournamentData | null>(null);
   const [dirParam] = useState(() => new URLSearchParams(window.location.search).get('dir'));
+  const [bundleParam] = useState(() => new URLSearchParams(window.location.search).get('bundle'));
 
   useEffect(() => {
     if (!dirParam) return;
@@ -152,9 +153,18 @@ export function StageApp() {
       });
   }, [dirParam]);
 
-  // No ?dir= (picker case): ask the siblings for the data.
   useEffect(() => {
-    if (dirParam) return;
+    if (!bundleParam) return;
+    loadTournamentDataFromBundleUrl(bundleParam)
+      .then(setData)
+      .catch(() => {
+        /* see the ?dir= catch above -- same rationale. */
+      });
+  }, [bundleParam]);
+
+  // No ?dir=/?bundle= (picker case): ask the siblings for the data.
+  useEffect(() => {
+    if (dirParam || bundleParam) return;
     const channel = new BroadcastChannel(SHOW_SYNC_CHANNEL);
     function onMessage(event: MessageEvent): void {
       if (isShowSyncMessage(event.data) && event.data.type === 'data') {
@@ -167,7 +177,7 @@ export function StageApp() {
       channel.removeEventListener('message', onMessage);
       channel.close();
     };
-  }, [dirParam]);
+  }, [dirParam, bundleParam]);
 
   if (!data) {
     return (

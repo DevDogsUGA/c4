@@ -1,7 +1,14 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { parseManifest, parseMatchRecord, parseTournamentSummary, type TournamentData } from './records.js';
+import {
+  parseManifest,
+  parseMatchRecord,
+  parseTournamentBundle,
+  parseTournamentSummary,
+  tournamentDataFromBundle,
+  type TournamentData,
+} from './records.js';
 import { bracketRevealKey, buildShowScript, ShowController, scenePhaseCount, type Scene } from './show.js';
 import { INTRO_SLIDES, OUTRO_SLIDES } from './slides.js';
 
@@ -16,6 +23,10 @@ function loadFixtureData(): TournamentData {
   const summary = parseTournamentSummary(readJson(manifest.summary), manifest.summary);
   const matches = manifest.matches.map((f) => parseMatchRecord(readJson(f), f));
   return { summary, matches };
+}
+
+function loadEdgeCaseBundleData(): TournamentData {
+  return tournamentDataFromBundle(parseTournamentBundle(readJson('tournament.json'), 'tournament.json'));
 }
 
 function bracketScenes(scenes: Scene[]): Extract<Scene, { type: 'bracket' }>[] {
@@ -107,7 +118,9 @@ describe('buildShowScript', () => {
     const champion = scenes.find((s) => s.type === 'champion') as Extract<Scene, { type: 'champion' }> | undefined;
     expect(champion).toBeDefined();
     const finalMatch = data.matches.find((m) => m.match_id === 'final-1')!;
-    expect(champion!.team.name).toBe(finalMatch.teams[finalMatch.result.winner_team]!.name);
+    const winnerSlot = finalMatch.result.winner_team;
+    expect(winnerSlot).not.toBeNull();
+    expect(champion!.team!.name).toBe(finalMatch.teams[winnerSlot!]!.name);
   });
 
   it('places the champion scene right before the outro slides', () => {
@@ -251,5 +264,55 @@ describe('ShowController', () => {
   it('jumpTo() is a no-op returning null for an empty script', () => {
     const controller = new ShowController([]);
     expect(controller.jumpTo(0)).toBeNull();
+  });
+});
+
+describe('buildShowScript with double forfeits (fixtures/tournament.json)', () => {
+  const data = loadEdgeCaseBundleData();
+  const scenes = buildShowScript(data);
+
+  it('flags the Round 1 double-forfeit slot as doubleForfeit, with no justAdvanced/justEliminated', () => {
+    const brackets = bracketScenes(scenes);
+    const doubleForfeitScene = brackets.find((b) => b.doubleForfeit);
+    expect(doubleForfeitScene).toBeDefined();
+    expect(doubleForfeitScene!.justAdvanced).toBeUndefined();
+    expect(doubleForfeitScene!.justEliminated).toBeNull();
+  });
+
+  it("reveals the next round's bye slot (the double-forfeit walkover) from the very first bracket scene", () => {
+    const initial = bracketScenes(scenes)[0]!;
+    const byeKey = bracketRevealKey({ round: 'Semifinal', slot: 0 });
+    expect(initial.revealedThrough.has(byeKey)).toBe(true);
+  });
+
+  it('the double-forfeit Final still gets exactly one match scene (a walkover, per matchPhases)', () => {
+    const finalMatchScene = matchScenes(scenes).find((m) => m.match.match_id === 'edge-final');
+    expect(finalMatchScene).toBeDefined();
+    expect(finalMatchScene!.match.result.winner_team).toBeNull();
+    expect(finalMatchScene!.phases.map((p) => p.kind)).toEqual(['walkover', 'result']);
+  });
+
+  it('the Final bracket-transition scene is flagged doubleForfeit too, with no champion-worthy winner', () => {
+    const brackets = bracketScenes(scenes);
+    const finalKey = bracketRevealKey({ round: 'Final', slot: 0 });
+    const finalTransition = brackets.find((b) => b.revealedThrough.has(finalKey) && b.doubleForfeit);
+    expect(finalTransition).toBeDefined();
+  });
+
+  it('still produces a champion scene after a double-forfeit final, but with a null team ("no champion")', () => {
+    const champion = scenes.find((s) => s.type === 'champion') as Extract<Scene, { type: 'champion' }> | undefined;
+    expect(champion).toBeDefined();
+    expect(champion!.team).toBeNull();
+  });
+
+  it('places the no-champion scene right before the outro slides, same as a normal champion', () => {
+    const championIndex = scenes.findIndex((s) => s.type === 'champion');
+    expect(championIndex).toBeGreaterThan(-1);
+    expect(scenes.slice(championIndex + 1).map((s) => s.type)).toEqual(OUTRO_SLIDES.map(() => 'slide'));
+  });
+
+  it('the round-robin double forfeit produces a "vs. — double forfeit" marquee line, not a "def." line', () => {
+    const seeding = scenes.find((s) => s.type === 'seeding') as Extract<Scene, { type: 'seeding' }>;
+    expect(seeding.marquee.some((line) => line.includes('double forfeit'))).toBe(true);
   });
 });
