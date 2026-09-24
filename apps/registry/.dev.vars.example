@@ -1,0 +1,28 @@
+# Copy to .dev.vars (gitignored) for `wrangler dev --local`.
+# Never commit real values. In production these are set with:
+#   wrangler secret put FORM_HMAC_SECRET
+#   wrangler secret put ROSTER_TOKEN
+#   wrangler secret put RESULTS_TOKEN
+#   wrangler secret put GITHUB_TOKEN
+#   wrangler secret put DISCORD_WEBHOOK_URL
+
+# Shared secret with the Apps Script HMAC signer (Code.gs Script Property
+# FORM_HMAC_SECRET must match exactly).
+FORM_HMAC_SECRET=dev-form-hmac-secret-change-me
+
+# Bearer token required on GET /api/roster.
+ROSTER_TOKEN=dev-roster-token-change-me
+
+# Bearer token required on POST /api/results (the arena Linode).
+RESULTS_TOKEN=dev-results-token-change-me
+
+# GitHub REST API token (repo read scope is enough) used by the cron refresh
+# to check reachability/emptiness/commits/Actions runs.
+GITHUB_TOKEN=ghp_dev_placeholder
+
+# Discord webhook URL for registration + results-change notifications.
+DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/000000000000000000/dev-placeholder
+
+# Optional: comma-separated allowlist checked against
+# Cf-Access-Authenticated-User-Email for /admin.
+ADMIN_EMAILS=

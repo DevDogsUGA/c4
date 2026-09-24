@@ -1,0 +1,9 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "types": ["@cloudflare/workers-types"]
+  },
+  "include": ["src"],
+  "exclude": ["dist", "node_modules", "**/*.test.ts", "scripts", "apps-script"]
+}
