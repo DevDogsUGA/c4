@@ -1,0 +1,7 @@
+{
+  "name": "Minimax Python (helper module)",
+  "template": "python",
+  "members": ["Sample Bot"],
+  "expect": { "kind": "normal", "notes": "search code lives in a new search.py; exercises the Dockerfile's *.py glob" },
+  "strength": 6
+}

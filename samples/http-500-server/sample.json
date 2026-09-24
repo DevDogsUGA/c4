@@ -1,0 +1,8 @@
+{
+  "name": "HTTP 500 Server",
+  "template": "node",
+  "members": ["Sample Bot"],
+  "expect": { "kind": "game_forfeit", "reason": "invalid_move", "notes": "custom minimal server; /move always 500s" },
+  "allowPlumbing": true,
+  "strength": 0
+}

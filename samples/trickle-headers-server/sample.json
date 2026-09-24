@@ -1,0 +1,8 @@
+{
+  "name": "Trickle Headers Server",
+  "template": "node",
+  "members": ["Sample Bot"],
+  "expect": { "kind": "game_forfeit", "reason": "clock_expired", "notes": "custom minimal server; /move trickles the response one byte per second, well past the clock" },
+  "allowPlumbing": true,
+  "strength": 0
+}

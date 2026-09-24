@@ -1,0 +1,7 @@
+{
+  "name": "AlphaBeta C++",
+  "template": "cpp",
+  "members": ["Sample Bot"],
+  "expect": { "kind": "normal", "notes": "alpha-beta depth ~7 with move ordering; top tier, likely finalist" },
+  "strength": 9
+}

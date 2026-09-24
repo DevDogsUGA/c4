@@ -1,0 +1,28 @@
+{
+  "name": "@acm-uga/c4-samples",
+  "version": "1.0.0",
+  "description": "Private sample bots built on the real public starter templates, run through the real Docker/match-engine/tournament path",
+  "type": "module",
+  "main": "./dist/index.js",
+  "bin": {
+    "c4-samples": "./dist/cli.js"
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc",
+    "fixtures": "tsc -p tsconfig.json && node dist/cli.js rehearsal",
+    "rehearsal": "tsc -p tsconfig.json && node dist/cli.js rehearsal",
+    "run": "tsc -p tsconfig.json && node dist/cli.js run",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@acm-uga/c4-contract": "workspace:*",
+    "commander": "^12.1.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}

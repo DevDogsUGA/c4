@@ -1,0 +1,7 @@
+{
+  "name": "Exit Zero Node",
+  "template": "node",
+  "members": ["Sample Bot"],
+  "expect": { "kind": "restarts", "notes": "exits with code 0 mid-match; still an unexpected process death, so the arena restarts it" },
+  "strength": 1
+}

@@ -1,0 +1,7 @@
+{
+  "name": "Greedy Java",
+  "template": "java",
+  "members": ["Sample Bot"],
+  "expect": { "kind": "normal", "notes": "win now, else block, else center" },
+  "strength": 3
+}

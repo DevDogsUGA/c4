@@ -1,0 +1,7 @@
+{
+  "name": "Minimax Rust",
+  "template": "rust",
+  "members": ["Sample Bot"],
+  "expect": { "kind": "normal", "notes": "same minimax-depth-4 algorithm as the TypeScript sample, cross-language parity" },
+  "strength": 6
+}

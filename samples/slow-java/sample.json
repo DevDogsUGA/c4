@@ -1,0 +1,7 @@
+{
+  "name": "Slow Java",
+  "template": "java",
+  "members": ["Sample Bot"],
+  "expect": { "kind": "game_forfeit", "reason": "clock_expired", "notes": "sleeps close to the think budget every move; drains the clock" },
+  "strength": 1
+}

@@ -1,0 +1,7 @@
+{
+  "name": "Random Python",
+  "template": "python",
+  "members": ["Sample Bot"],
+  "expect": { "kind": "normal", "notes": "unchanged template bot.py; baseline, empty overlay is allowed" },
+  "strength": 1
+}

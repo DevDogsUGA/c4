@@ -1,0 +1,7 @@
+{
+  "name": "Center C#",
+  "template": "csharp",
+  "members": ["Sample Bot"],
+  "expect": { "kind": "normal", "notes": "prefers center columns; weak but not random" },
+  "strength": 2
+}

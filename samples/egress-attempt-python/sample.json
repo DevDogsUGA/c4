@@ -1,0 +1,8 @@
+{
+  "name": "Egress Attempt Python",
+  "template": "python",
+  "members": ["Sample Bot"],
+  "expect": { "kind": "normal", "notes": "tier-3 resource abuse: attempts internet egress and to reach other containers; must still play legally. The runner reports any *successful* egress as a FAILURE. Build-only until per-match internal networks land; never run outside them." },
+  "requiresHardenedEngine": true,
+  "strength": 1
+}

@@ -1,0 +1,7 @@
+{
+  "name": "Greedy C",
+  "template": "c",
+  "members": ["Sample Bot"],
+  "expect": { "kind": "normal", "notes": "win now, else block, else center" },
+  "strength": 3
+}

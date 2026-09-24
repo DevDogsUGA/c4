@@ -1,0 +1,8 @@
+{
+  "name": "Never Responds Server",
+  "template": "python",
+  "members": ["Sample Bot"],
+  "expect": { "kind": "game_forfeit", "reason": "clock_expired", "notes": "custom minimal server; /move accepts the connection and never replies, so the chess clock runs out" },
+  "allowPlumbing": true,
+  "strength": 0
+}

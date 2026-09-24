@@ -1,0 +1,7 @@
+{
+  "name": "Crash Once Recover Go",
+  "template": "go",
+  "members": ["Sample Bot"],
+  "expect": { "kind": "restarts", "notes": "crashes on the very first move of each game, then recovers; the arena restarts the container and re-sends the request" },
+  "strength": 1
+}

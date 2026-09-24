@@ -1,0 +1,8 @@
+{
+  "name": "Memory Bomb Node",
+  "template": "node",
+  "members": ["Sample Bot"],
+  "expect": { "kind": "game_forfeit", "reason": "crash_loop", "notes": "tier-3 resource abuse: allocates until OOM-killed. Build-only until the hardened engine (512MB cap, no swap) lands; never run outside it." },
+  "requiresHardenedEngine": true,
+  "strength": 0
+}

@@ -1,0 +1,8 @@
+{
+  "name": "CPU Spin Python",
+  "template": "python",
+  "members": ["Sample Bot"],
+  "expect": { "kind": "normal", "notes": "tier-3 resource abuse: spins a background thread at 100% CPU. Build-only until the hardened engine (1 CPU cap) lands; never run outside it." },
+  "requiresHardenedEngine": true,
+  "strength": 1
+}
