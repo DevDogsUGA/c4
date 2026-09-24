@@ -1,5 +1,5 @@
 {
-  "name": "@connect-4/presenter",
+  "name": "@acm-uga/c4-presenter",
   "version": "1.0.0",
   "description": "Projector app: ticker, standings, bracket, replay player",
   "type": "module",
@@ -11,10 +11,10 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@connect-4/board-ui": "workspace:*",
-    "@connect-4/contract": "workspace:*",
-    "@connect-4/engine": "workspace:*",
-    "@connect-4/theme": "workspace:*",
+    "@acm-uga/c4-board-ui": "workspace:*",
+    "@acm-uga/c4-contract": "workspace:*",
+    "@acm-uga/c4-engine": "workspace:*",
+    "@acm-uga/c4-theme": "workspace:*",
     "@pixi/react": "^8.0.5",
     "pixi.js": "^8.21.0",
     "react": "^19.3.0",

@@ -2,7 +2,7 @@
 //
 // DESIGN.md is normative. This package is the spec, as code: zod schemas are
 // the source of truth, TS types are inferred from them. No I/O, no
-// dependency on @connect-4/engine (kept deliberately independent so the
+// dependency on @acm-uga/c4-engine (kept deliberately independent so the
 // wire format stays honest to what actually crosses the network / disk).
 
 import { z } from 'zod';

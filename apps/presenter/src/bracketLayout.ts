@@ -3,7 +3,7 @@
 // the center. Also derives the ordered elimination/progression sequence
 // used to drive the "loser tumbles, winner slides in" animation.
 
-import type { BracketMatch, MatchRecord } from '@connect-4/contract';
+import type { BracketMatch, MatchRecord } from '@acm-uga/c4-contract';
 import type { BracketRound } from './bracket.js';
 
 export interface SplitBracket {

@@ -3,7 +3,7 @@
 // connection failure (crash/OOM-kill) -> 'crashed'; non-200/malformed JSON/
 // schema-invalid body -> 'invalid'; otherwise -> 'ok'.
 
-import { MoveResponseSchema, type MoveRequest } from '@connect-4/contract';
+import { MoveResponseSchema, type MoveRequest } from '@acm-uga/c4-contract';
 import type { BotTransport, MoveOutcome } from '../types.js';
 import type { ContainerHandle } from './container-runtime.js';
 

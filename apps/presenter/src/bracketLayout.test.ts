@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { BracketMatch, MatchRecord } from '@connect-4/contract';
+import type { BracketMatch, MatchRecord } from '@acm-uga/c4-contract';
 import { groupBracketByRound } from './bracket.js';
 import { eliminationSequence, splitBracket } from './bracketLayout.js';
 

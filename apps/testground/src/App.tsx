@@ -1,12 +1,12 @@
 // Team-facing bot testing page. Collects the team's bot URL + opponent
 // choice, referees a live game via referee.playGame, renders it with
-// @connect-4/board-ui (through BoardCanvas), and surfaces the last
+// @acm-uga/c4-board-ui (through BoardCanvas), and surfaces the last
 // request/response JSON plus clear error states. Not unit tested (per this
 // repo's ground rules: rendering/DOM is excluded) -- the logic it calls into
 // (referee.ts, protocol.ts, bot-player.ts, practice-bots.ts) IS tested.
 
 import { useRef, useState } from 'react';
-import type { Player } from '@connect-4/engine';
+import type { Player } from '@acm-uga/c4-engine';
 import { playGame, type GameEvent } from './referee.js';
 import { createBotPlayer, type BotExchange } from './bot-player.js';
 import { DEFAULT_PRACTICE_BOTS_URL, PRACTICE_BOTS, practiceBotUrl } from './practice-bots.js';

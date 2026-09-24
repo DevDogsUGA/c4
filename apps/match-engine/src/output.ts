@@ -7,7 +7,7 @@
 
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { MatchRecordSchema, TournamentSummarySchema, type MatchRecord, type TournamentSummary } from '@connect-4/contract';
+import { MatchRecordSchema, TournamentSummarySchema, type MatchRecord, type TournamentSummary } from '@acm-uga/c4-contract';
 
 function safeFileName(matchId: string): string {
   return matchId.replace(/[^a-zA-Z0-9_-]/g, '_');

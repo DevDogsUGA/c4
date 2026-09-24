@@ -24,7 +24,7 @@
 
 import '../pixiExtend.js';
 import { useEffect, useMemo } from 'react';
-import type { BracketMatch } from '@connect-4/contract';
+import type { BracketMatch } from '@acm-uga/c4-contract';
 import type { Scene } from '../../show.js';
 import { bracketRevealKey } from '../../show.js';
 import { finalOrder } from '../../seeding.js';
@@ -43,7 +43,7 @@ import { useTimelineRefs, type TimelineRefs } from '../useTimeline.js';
 import { eyebrowTextStyle, rowTextStyle } from '../textStyles.js';
 import { ParticleField } from '../ParticleField.js';
 import { ELIMINATION_DEBRIS_CONFIG, WINNING_FOUR_SPARK_CONFIG } from '../particles.js';
-import { TOKENS } from '@connect-4/theme/tokens';
+import { TOKENS } from '@acm-uga/c4-theme/tokens';
 
 type Register = TimelineRefs['register'];
 type BracketSceneT = Extract<Scene, { type: 'bracket' }>;
@@ -126,7 +126,7 @@ export function BracketStage({
   /** The immediately-preceding scene's `revealedThrough`, if it was also a bracket scene -- diffed against this scene's to find "the just-decided card" (winner-travel/loser-tumble source). `null` for the very first bracket scene (only byes are pre-revealed; nothing "just" happened). */
   prevRevealedThrough: ReadonlySet<string> | null;
   /** Standings to morph FROM (SHOW_PLAN.md §9c item 1) -- set only on the very first bracket scene, right after the seeding reveal. */
-  morphFromStandings: import('@connect-4/contract').StandingsEntry[] | null;
+  morphFromStandings: import('@acm-uga/c4-contract').StandingsEntry[] | null;
 }) {
   const { layout: split, revealedThrough, justAdvanced, justEliminated } = scene;
 

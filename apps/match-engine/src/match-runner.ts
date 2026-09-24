@@ -11,7 +11,7 @@
 // after 3 games) also correctly continues into sudden death rather than
 // being scored as decided on a 1-0 game-win count.
 
-import type { GameRecord, MatchRecord, TeamRef, TeamSlot } from '@connect-4/contract';
+import type { GameRecord, MatchRecord, TeamRef, TeamSlot } from '@acm-uga/c4-contract';
 import { gameWinningTeamSlot, playGame, type PlayerTransports } from './game-runner.js';
 import type { Rng } from './rng.js';
 import { coinFlipSlot } from './rng.js';

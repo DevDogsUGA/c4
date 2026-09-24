@@ -1,7 +1,7 @@
 import { readdir, mkdtemp, rm, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { MatchRecordSchema, TournamentSummarySchema } from '@connect-4/contract';
+import { MatchRecordSchema, TournamentSummarySchema } from '@acm-uga/c4-contract';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createSeededRng } from './rng.js';
 import { runTournament } from './tournament-runner.js';

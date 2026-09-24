@@ -16,7 +16,7 @@ export type EaseFn = (t: number) => number;
 // drop-animation-specific curves it needs internally.
 // ---------------------------------------------------------------------------
 
-export { easeInCubic } from '@connect-4/board-ui';
+export { easeInCubic } from '@acm-uga/c4-board-ui';
 
 export const linear: EaseFn = (t) => t;
 

@@ -1,4 +1,4 @@
-name = "connect-4-testground"
+name = "c4-testground"
 compatibility_date = "2024-09-19"
 
 # Static site: `vite build` emits ./dist, served directly by Workers static

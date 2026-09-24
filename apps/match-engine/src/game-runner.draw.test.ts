@@ -1,4 +1,4 @@
-// Isolated in its own file because it mocks @connect-4/engine down to a
+// Isolated in its own file because it mocks @acm-uga/c4-engine down to a
 // trivial 1x1 board so a draw is reachable in a single move, without having
 // to hand-construct a full 8x8 fill sequence with no four-in-a-row anywhere
 // (a real such sequence exists, but isn't worth the complexity here — the
@@ -6,7 +6,7 @@
 // this test is only about game-runner wiring the draw outcome through).
 import { describe, expect, it, vi } from 'vitest';
 
-vi.mock('@connect-4/engine', () => {
+vi.mock('@acm-uga/c4-engine', () => {
   type Cell = 0 | 1 | 2;
   type Board = Cell[][];
   return {

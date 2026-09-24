@@ -1,11 +1,11 @@
-// Pixi TextStyle factories, built only from @connect-4/theme/tokens -- the
+// Pixi TextStyle factories, built only from @acm-uga/c4-theme/tokens -- the
 // single source of truth Tailwind classes can't reach on a canvas
 // (SHOW_PLAN.md §9b). DOM/Pixi-adjacent (imports pixi.js), so left untested
 // per this repo's rendering-exclusion convention; the tokens these read
 // from are owned and typed by packages/theme.
 
 import { TextStyle, type TextStyleOptions } from 'pixi.js';
-import { FONT_FAMILIES, TOKENS } from '@connect-4/theme/tokens';
+import { FONT_FAMILIES, TOKENS } from '@acm-uga/c4-theme/tokens';
 
 function build(base: TextStyleOptions, overrides?: Partial<TextStyleOptions>): TextStyle {
   return new TextStyle({ ...base, ...overrides });

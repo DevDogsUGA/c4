@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { emptyBoard } from '@connect-4/engine';
+import { emptyBoard } from '@acm-uga/c4-engine';
 import { callBot, joinUrl, type MoveRequestBody } from './protocol.js';
 
 function baseRequest(): MoveRequestBody {

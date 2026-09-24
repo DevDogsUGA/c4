@@ -1,5 +1,5 @@
 {
-  "name": "@connect-4/match-engine",
+  "name": "@acm-uga/c4-match-engine",
   "version": "1.0.0",
   "description": "Headless tournament orchestrator: Docker lifecycle, chess clocks, round-robin + bracket",
   "type": "module",
@@ -20,8 +20,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@connect-4/contract": "workspace:*",
-    "@connect-4/engine": "workspace:*",
+    "@acm-uga/c4-contract": "workspace:*",
+    "@acm-uga/c4-engine": "workspace:*",
     "commander": "^12.1.0",
     "dockerode": "^4.0.2",
     "zod": "^3.23.0"

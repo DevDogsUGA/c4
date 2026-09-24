@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { BracketMatch } from '@connect-4/contract';
+import type { BracketMatch } from '@acm-uga/c4-contract';
 import { finalRound, groupBracketByRound } from './bracket.js';
 
 const team = (name: string) => ({ name, repo_url: `https://github.com/example/${name}` });

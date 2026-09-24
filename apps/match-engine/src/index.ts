@@ -1,4 +1,4 @@
-// Public API of @connect-4/match-engine.
+// Public API of @acm-uga/c4-match-engine.
 
 export { ChessClock } from './clock.js';
 export { createSeededRng, coinFlipSlot, shuffle, type Rng } from './rng.js';

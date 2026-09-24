@@ -2,7 +2,7 @@
 // "Full round-robin (everyone plays everyone, best-of-3) ... Standings by
 // match wins; tiebreaks: head-to-head -> total game wins -> coin flip."
 
-import type { MatchRecord, StandingsEntry, TeamSlot } from '@connect-4/contract';
+import type { MatchRecord, StandingsEntry, TeamSlot } from '@acm-uga/c4-contract';
 import type { Rng } from './rng.js';
 import { toTeamRef, type Team } from './types.js';
 

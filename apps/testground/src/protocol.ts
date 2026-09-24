@@ -1,10 +1,10 @@
 // The bot-facing wire format, per DESIGN.md "The bot model". Mirrors
-// @connect-4/contract's MoveRequest/MoveResponse shapes but is kept local
+// @acm-uga/c4-contract's MoveRequest/MoveResponse shapes but is kept local
 // (no dependency on `contract`) since this is the one package that actually
 // sends these bytes over the wire to an arbitrary team's server and needs to
 // tolerate a malformed reply rather than assume a well-typed one.
 
-import type { Board, Player } from '@connect-4/engine';
+import type { Board, Player } from '@acm-uga/c4-engine';
 
 export interface MoveRequestBody {
   you: Player;

@@ -1,5 +1,5 @@
 {
-  "name": "@connect-4/testground",
+  "name": "@acm-uga/c4-testground",
   "version": "1.0.0",
   "description": "Static site for teams to test their bots",
   "type": "module",
@@ -11,9 +11,9 @@
     "deploy": "wrangler deploy"
   },
   "dependencies": {
-    "@connect-4/board-ui": "workspace:*",
-    "@connect-4/engine": "workspace:*",
-    "@connect-4/theme": "workspace:*",
+    "@acm-uga/c4-board-ui": "workspace:*",
+    "@acm-uga/c4-engine": "workspace:*",
+    "@acm-uga/c4-theme": "workspace:*",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"
   },

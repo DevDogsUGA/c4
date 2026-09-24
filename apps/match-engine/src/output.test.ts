@@ -1,7 +1,7 @@
 import { readFile, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import type { MatchRecord, TournamentSummary } from '@connect-4/contract';
+import type { MatchRecord, TournamentSummary } from '@acm-uga/c4-contract';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { writeMatchRecord, writeTournamentSummary } from './output.js';
 

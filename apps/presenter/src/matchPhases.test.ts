@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { GameRecord, MatchRecord } from '@connect-4/contract';
+import type { GameRecord, MatchRecord } from '@acm-uga/c4-contract';
 import { buildMatchPhases, resolveBoardRegion } from './matchPhases.js';
 
 const team = (name: string) => ({ name, repo_url: `https://github.com/example/${name}` });

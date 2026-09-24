@@ -7,7 +7,7 @@
 // zero games (a startup-timeout forfeit, no board ever touched) is a
 // walkover straight to the result.
 
-import type { GameRecord, MatchRecord } from '@connect-4/contract';
+import type { GameRecord, MatchRecord } from '@acm-uga/c4-contract';
 
 export type MatchPhase =
   | { kind: 'dual'; games: [GameRecord, GameRecord] }

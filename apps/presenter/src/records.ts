@@ -1,10 +1,10 @@
 // Loads and validates game-record files. Per DESIGN.md's "game-record
 // contract", this is the ONLY interface the presenter reads from the match
-// engine -- every record is parsed through @connect-4/contract's schemas
+// engine -- every record is parsed through @acm-uga/c4-contract's schemas
 // before the rest of the app ever sees it. No other input format is
 // accepted.
 
-import { MatchRecordSchema, TournamentSummarySchema, type MatchRecord, type TournamentSummary } from '@connect-4/contract';
+import { MatchRecordSchema, TournamentSummarySchema, type MatchRecord, type TournamentSummary } from '@acm-uga/c4-contract';
 
 export interface TournamentData {
   summary: TournamentSummary;

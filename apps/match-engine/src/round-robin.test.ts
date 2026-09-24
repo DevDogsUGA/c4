@@ -1,4 +1,4 @@
-import type { MatchRecord } from '@connect-4/contract';
+import type { MatchRecord } from '@acm-uga/c4-contract';
 import { describe, expect, it } from 'vitest';
 import { createSeededRng } from './rng.js';
 import { computeStandings, roundRobinPairings } from './round-robin.js';

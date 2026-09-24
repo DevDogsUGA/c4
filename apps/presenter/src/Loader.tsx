@@ -3,7 +3,7 @@
 // validated parsers -- same contract as the ?dir= fetch path.
 
 import { useRef } from 'react';
-import type { MatchRecord } from '@connect-4/contract';
+import type { MatchRecord } from '@acm-uga/c4-contract';
 import { parseManifest, parseMatchRecord, parseTournamentSummary, type TournamentData } from './records.js';
 
 export function Loader({ onLoad }: { onLoad: (data: TournamentData) => void }) {

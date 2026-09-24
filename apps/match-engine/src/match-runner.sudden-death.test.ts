@@ -1,5 +1,5 @@
 // Isolated in its own file (like game-runner.draw.test.ts) because it mocks
-// @connect-4/engine down to a trivial single-cell board so each game
+// @acm-uga/c4-engine down to a trivial single-cell board so each game
 // resolves after exactly one move, and scripts a fixed sequence of
 // win/win/draw/win outcomes to deterministically produce a 1-1 tie after
 // the regular best-of-3 (games 1 and 2 split, game 3 draws) and verify
@@ -7,7 +7,7 @@
 // ("a tied best-of-3 goes to sudden-death games, first mover random").
 import { describe, expect, it, vi } from 'vitest';
 
-vi.mock('@connect-4/engine', () => {
+vi.mock('@acm-uga/c4-engine', () => {
   type Cell = 0 | 1 | 2;
   type Board = Cell[][];
   // Each game plays exactly one move (the single-cell board is immediately

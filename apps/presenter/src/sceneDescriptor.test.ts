@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { MatchRecord, StandingsEntry, TeamRef } from '@connect-4/contract';
+import type { MatchRecord, StandingsEntry, TeamRef } from '@acm-uga/c4-contract';
 import { describeScene, describeScenes } from './sceneDescriptor.js';
 import type { Scene } from './show.js';
 import { INTRO_SLIDES } from './slides.js';

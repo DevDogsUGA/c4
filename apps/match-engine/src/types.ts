@@ -3,7 +3,7 @@
 // to see: BotTransport is the only thing that talks over a wire (or fakes
 // doing so); everything else in this package is pure orchestration logic.
 
-import type { TeamRef } from '@connect-4/contract';
+import type { TeamRef } from '@acm-uga/c4-contract';
 
 /** A team as known to the match engine: a name plus its submitted repo URL. */
 export interface Team {
@@ -38,7 +38,7 @@ export interface BotTransport {
    * chess clock and forfeit logic never has to catch. Only reserve rejection
    * for genuine transport bugs the caller cannot reasonably handle.
    */
-  move(request: import('@connect-4/contract').MoveRequest): Promise<MoveOutcome>;
+  move(request: import('@acm-uga/c4-contract').MoveRequest): Promise<MoveOutcome>;
 
   /**
    * Called after a `crashed` outcome. Must bring the bot back to a state

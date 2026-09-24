@@ -11,7 +11,7 @@
 import './pixiExtend.js';
 import { useMemo } from 'react';
 import { FillGradient } from 'pixi.js';
-import { TOKENS } from '@connect-4/theme/tokens';
+import { TOKENS } from '@acm-uga/c4-theme/tokens';
 
 export interface GlowProps {
   /** Center x/y and radius, in logical stage px. */

@@ -8,7 +8,7 @@
 // (pure, tested).
 
 import './pixiExtend.js';
-import { TOKENS } from '@connect-4/theme/tokens';
+import { TOKENS } from '@acm-uga/c4-theme/tokens';
 import type { PlacedElement } from './layout.js';
 
 const ARM_LENGTH = 48;

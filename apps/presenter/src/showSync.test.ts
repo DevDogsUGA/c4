@@ -12,7 +12,7 @@ import {
 
 describe('SHOW_SYNC_CHANNEL', () => {
   it('is the fixed channel name both windows must agree on', () => {
-    expect(SHOW_SYNC_CHANNEL).toBe('connect-4-show');
+    expect(SHOW_SYNC_CHANNEL).toBe('c4-show');
   });
 });
 

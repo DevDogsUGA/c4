@@ -21,7 +21,7 @@ import './pixiExtend.js';
 import { useEffect, useRef, useState } from 'react';
 import { Texture } from 'pixi.js';
 import { useTick } from '@pixi/react';
-import { BoardRenderer, type BoardRendererOptions } from '@connect-4/board-ui';
+import { BoardRenderer, type BoardRendererOptions } from '@acm-uga/c4-board-ui';
 
 /** A BoardRenderer mounted off-DOM at a fixed logical size, with its canvas exposed as a live Pixi texture. */
 export interface BoardTextureHandle {

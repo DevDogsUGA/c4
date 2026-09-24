@@ -4,7 +4,7 @@ import { describe, it, expect } from 'vitest';
 import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { MatchRecordSchema, TournamentSummarySchema } from '@connect-4/contract';
+import { MatchRecordSchema, TournamentSummarySchema } from '@acm-uga/c4-contract';
 
 const __dirname = resolve(fileURLToPath(import.meta.url), '..');
 const FIXTURES_DIR = resolve(__dirname, '../fixtures');

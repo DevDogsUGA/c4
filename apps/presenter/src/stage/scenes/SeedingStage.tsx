@@ -20,7 +20,7 @@ import '../pixiExtend.js';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTick } from '@pixi/react';
 import type { Graphics as PixiGraphics, Text as PixiText } from 'pixi.js';
-import type { StandingsEntry } from '@connect-4/contract';
+import type { StandingsEntry } from '@acm-uga/c4-contract';
 import { alphabeticalOrder, finalOrder } from '../../seeding.js';
 import {
   ODOMETER_DIGIT_HEIGHT,
@@ -34,7 +34,7 @@ import {
 import { chain, easeInOutCubic, easeOutCubic, track } from '../timeline.js';
 import { useTimelineRefs, type TimelineRefs } from '../useTimeline.js';
 import { eyebrowTextStyle, headingTextStyle, monoTextStyle, rowTextStyle } from '../textStyles.js';
-import { TOKENS } from '@connect-4/theme/tokens';
+import { TOKENS } from '@acm-uga/c4-theme/tokens';
 
 type Register = TimelineRefs['register'];
 

@@ -7,7 +7,7 @@ import {
   legalMoves,
   applyMove,
   checkWin,
-} from '@connect-4/engine';
+} from '@acm-uga/c4-engine';
 
 /**
  * Random bot: picks a legal move uniformly at random.

@@ -2,7 +2,7 @@
 // "Time control & failure rules". One instance per game; each player has an
 // independent budget that only ever decreases.
 
-import type { Player } from '@connect-4/engine';
+import type { Player } from '@acm-uga/c4-engine';
 
 export class ChessClock {
   private remainingMs: Record<Player, number>;

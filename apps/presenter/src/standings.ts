@@ -1,6 +1,6 @@
 // Pure standings-display logic.
 
-import type { StandingsEntry } from '@connect-4/contract';
+import type { StandingsEntry } from '@acm-uga/c4-contract';
 
 /** Standings sorted for display: rank ascending (rank is already computed upstream by match-engine). */
 export function sortStandings(entries: readonly StandingsEntry[]): StandingsEntry[] {

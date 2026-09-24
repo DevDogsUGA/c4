@@ -20,7 +20,7 @@
 import type { TournamentData } from './records.js';
 
 /** Channel name shared by the control and stage windows. */
-export const SHOW_SYNC_CHANNEL = 'connect-4-show';
+export const SHOW_SYNC_CHANNEL = 'c4-show';
 
 /** The control window's authoritative position, mirrored by followers. */
 export interface ShowSyncState {

@@ -6,7 +6,7 @@
 // else" (IMPLEMENTATION_PLAN.md).
 
 import os from 'node:os';
-import type { BracketMatch, MatchRecord, TournamentSummary } from '@connect-4/contract';
+import type { BracketMatch, MatchRecord, TournamentSummary } from '@acm-uga/c4-contract';
 import { bracketSize, byeWinner, firstRoundPairings, isBye, nextRoundPairings, roundLabel, type BracketPairing } from './bracket.js';
 import { orchestrateMatch } from './match-orchestrator.js';
 import type { BotProvider } from './types.js';

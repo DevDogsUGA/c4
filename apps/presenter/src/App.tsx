@@ -145,7 +145,7 @@ export function App({ popup = false }: { popup?: boolean }) {
     if (!data) return;
     const url = new URL(window.location.href);
     url.searchParams.set('role', 'control');
-    const controlWindow = window.open(url.toString(), 'connect-4-control', 'popup=yes,width=1100,height=750');
+    const controlWindow = window.open(url.toString(), 'c4-control', 'popup=yes,width=1100,height=750');
     if (!controlWindow) {
       setError('Popup blocked -- allow popups for this site to launch the stage display.');
       return;

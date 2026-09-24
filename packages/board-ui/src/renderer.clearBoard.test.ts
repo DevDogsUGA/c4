@@ -8,7 +8,7 @@
 // rendering-exclusion rule.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Board } from '@connect-4/engine';
+import type { Board } from '@acm-uga/c4-engine';
 import { BoardRenderer } from './renderer.js';
 
 function stubCanvasEnvironment(): void {

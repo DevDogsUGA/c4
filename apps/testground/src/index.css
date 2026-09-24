@@ -1,10 +1,10 @@
 @import "tailwindcss";
-@import "@connect-4/theme";
+@import "@acm-uga/c4-theme";
 
 /* Dev-tool aesthetics: dark to match the board renderer and the rest of the
    ACM @ UGA system, but information-dense (this runs on a team's own laptop
    during the dev hour, not the projector). Colors/fonts come exclusively
-   from @connect-4/theme's tokens -- see SHOW_PLAN.md §1 and §7. */
+   from @acm-uga/c4-theme's tokens -- see SHOW_PLAN.md §1 and §7. */
 html,
 body {
   margin: 0;

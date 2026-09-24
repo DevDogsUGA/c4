@@ -2,8 +2,8 @@
 // a GameRecord's flat move list into a sequence of board snapshots that a
 // renderer (board-ui's BoardRenderer) can step through and animate.
 
-import { applyMove, checkWin, emptyBoard, type Board, type WinResult } from '@connect-4/engine';
-import type { GameRecord, MoveRecord } from '@connect-4/contract';
+import { applyMove, checkWin, emptyBoard, type Board, type WinResult } from '@acm-uga/c4-engine';
+import type { GameRecord, MoveRecord } from '@acm-uga/c4-contract';
 
 export interface ReplayStep {
   /** 0-based index into the game's moves array. */

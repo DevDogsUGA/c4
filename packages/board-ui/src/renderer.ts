@@ -12,7 +12,7 @@
 // pre-rendered pixel-art sprites (sprites.ts) -- no per-frame gradients or
 // shadowBlur anywhere.
 
-import type { Board, Cell, Player } from '@connect-4/engine';
+import type { Board, Cell, Player } from '@acm-uga/c4-engine';
 import { type Coord, computeGeometry, cellCenter, dropStartY, type BoardGeometry } from './geometry.js';
 import { dropEasing, easeInCubic } from './easing.js';
 import { type BoardTheme, resolveTheme } from './theme.js';
@@ -268,7 +268,7 @@ export class BoardRenderer {
    * Animates `player`'s piece falling into (col, row) from above the board,
    * then settles the internal board state to match. `row` is the resting
    * row the piece will land on (callers compute this from game rules, e.g.
-   * @connect-4/engine's applyMove); the renderer does not validate legality.
+   * @acm-uga/c4-engine's applyMove); the renderer does not validate legality.
    * Resolves once the drop animation completes.
    *
    * When `dropHand` is enabled (BoardRendererOptions), a small pixel-art

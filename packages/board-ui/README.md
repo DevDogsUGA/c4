@@ -1,7 +1,7 @@
-# @connect-4/board-ui
+# @acm-uga/c4-board-ui
 
 Framework-free, canvas-based Connect Four board renderer. No DOM framework,
-no dependency beyond `@connect-4/engine` (for the `Board`/`Cell`/`Player`
+no dependency beyond `@acm-uga/c4-engine` (for the `Board`/`Cell`/`Player`
 types). Owned by `presenter`; also consumed by `testground`.
 
 ## Install / import
@@ -9,14 +9,14 @@ types). Owned by `presenter`; also consumed by `testground`.
 Within this monorepo:
 
 ```ts
-import { BoardRenderer } from '@connect-4/board-ui';
+import { BoardRenderer } from '@acm-uga/c4-board-ui';
 ```
 
 ## Quick start
 
 ```ts
-import { BoardRenderer } from '@connect-4/board-ui';
-import { emptyBoard, applyMove, checkWin } from '@connect-4/engine';
+import { BoardRenderer } from '@acm-uga/c4-board-ui';
+import { emptyBoard, applyMove, checkWin } from '@acm-uga/c4-engine';
 
 const container = document.getElementById('board')!; // any sized block element
 const renderer = new BoardRenderer(container);
@@ -29,7 +29,7 @@ renderer.setBoard(board);
 
 // Animate a piece falling into column 3 for player 1. The caller (not the
 // renderer) is responsible for game rules: compute the landing row with
-// @connect-4/engine, apply it to your own board state, then tell the
+// @acm-uga/c4-engine, apply it to your own board state, then tell the
 // renderer to animate it.
 const nextBoard = applyMove(board, 3, 1);
 const landingRow = nextBoard[3].findIndex((cell, row) => cell !== board[3][row]);
@@ -67,7 +67,7 @@ drops. Use for initial render, jumping between games, or scrubbing a replay.
 Animates `player`'s piece falling from above the board into `(col, row)`,
 with a small bounce settle. `row` is the **landing row** — the renderer does
 not compute gravity or validate legality; callers own game rules (typically
-via `@connect-4/engine`'s `applyMove`). Resolves once the piece has visually
+via `@acm-uga/c4-engine`'s `applyMove`). Resolves once the piece has visually
 settled and the renderer's internal board state has been updated to match.
 
 `opts` is optional and additive (existing 3-argument call sites are
@@ -84,7 +84,7 @@ Dims every settled chip that is **not** part of the four `line` cells
 full-strength. No ring, no glow -- this is a single static redraw of the
 static layer, so it schedules no timers of its own. `clearHighlight()`
 restores full brightness. `Coord` is `{ col: number; row: number }`, the
-same shape `@connect-4/engine`'s `checkWin().line` returns. `setBoard()` and
+same shape `@acm-uga/c4-engine`'s `checkWin().line` returns. `setBoard()` and
 `destroy()` also clear the highlight.
 
 ### `renderer.clearBoard(): Promise<void>`
@@ -111,7 +111,7 @@ unmounting.
 ### Theming
 
 ```ts
-import { DEFAULT_THEME, type BoardTheme } from '@connect-4/board-ui';
+import { DEFAULT_THEME, type BoardTheme } from '@acm-uga/c4-board-ui';
 
 const renderer = new BoardRenderer(container, {
   theme: { player1: '#00ff88' }, // override just what you need
@@ -127,7 +127,7 @@ palette meant to read from the back of a room on a projector.
 - `computeGeometry(cols, rows, maxWidth, maxHeight): BoardGeometry` — fits a
   square-celled grid into a box.
 - `cellCenter(col, row, geometry): { x, y }` — pixel center of a cell. Note
-  `row` is bottom-up per DESIGN.md/`@connect-4/engine` convention; this
+  `row` is bottom-up per DESIGN.md/`@acm-uga/c4-engine` convention; this
   function does the row-flip to canvas y for you.
 - `dropEasing(t: number): number` — the 0..1 animation curve `dropPiece`
   uses internally (accelerating fall, then a decaying bounce settle).
@@ -171,7 +171,7 @@ Chips are drawn pixel-art style (SHOW_PLAN.md §2b), not shaded spheres — no
 ## What this package does NOT do
 
 - No game rules (legality, win detection, turn order) — that's
-  `@connect-4/engine`.
+  `@acm-uga/c4-engine`.
 - No game-record parsing or replay pacing — that's `presenter`.
 - No network calls.
 

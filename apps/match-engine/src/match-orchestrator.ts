@@ -9,7 +9,7 @@
 // module runs against real Docker containers or an in-process fake with
 // zero code changes.
 
-import type { MatchRecord, TeamRef } from '@connect-4/contract';
+import type { MatchRecord, TeamRef } from '@acm-uga/c4-contract';
 import { StartupTimeoutError } from './docker/container-runtime.js';
 import { playMatch, startupForfeitMatch, type MatchConfig, type MatchTransports } from './match-runner.js';
 import type { Rng } from './rng.js';

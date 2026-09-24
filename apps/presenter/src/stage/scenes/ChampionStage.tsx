@@ -17,14 +17,14 @@ import '../pixiExtend.js';
 import { useEffect, useRef } from 'react';
 import { useTick } from '@pixi/react';
 import type { Graphics as PixiGraphics } from 'pixi.js';
-import type { TeamRef } from '@connect-4/contract';
+import type { TeamRef } from '@acm-uga/c4-contract';
 import { layoutChampion } from '../layout.js';
 import { easeOutBack, track } from '../timeline.js';
 import { useTimelineRefs } from '../useTimeline.js';
 import { eyebrowTextStyle, heroTextStyle } from '../textStyles.js';
 import { ChampionConfetti } from '../ChampionConfetti.js';
 import { driftOffset, twinkleAlpha } from '../particles.js';
-import { TOKENS } from '@connect-4/theme/tokens';
+import { TOKENS } from '@acm-uga/c4-theme/tokens';
 
 const HERO_ENTRANCE_MS = 900;
 

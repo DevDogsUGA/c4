@@ -1,9 +1,9 @@
 // Pure game-loop logic: referees a game between two move providers using
-// @connect-4/engine's rules. No DOM, no fetch -- fully testable with fake
-// providers. UI code (App.tsx) wraps @connect-4/board-ui around the events
+// @acm-uga/c4-engine's rules. No DOM, no fetch -- fully testable with fake
+// providers. UI code (App.tsx) wraps @acm-uga/c4-board-ui around the events
 // this yields; bot-player.ts wraps protocol.ts's callBot into a provider.
 
-import { applyMove, checkWin, emptyBoard, isDraw, isLegalMove, type Board, type Coord, type Player } from '@connect-4/engine';
+import { applyMove, checkWin, emptyBoard, isDraw, isLegalMove, type Board, type Coord, type Player } from '@acm-uga/c4-engine';
 
 /** Why a move provider failed to produce a legal column. */
 export type MoveFailureReason = 'invalid_move' | 'timeout' | 'unreachable' | 'error';

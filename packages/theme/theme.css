@@ -1,4 +1,4 @@
-/* @connect-4/theme — shared design tokens for the presenter and testground
+/* @acm-uga/c4-theme — shared design tokens for the presenter and testground
  * apps. Self-hosted fonts (no CDN, event Wi-Fi is untrusted) + a Tailwind v4
  * `@theme` block exposing the ACM @ UGA brand as color/font tokens.
  * See SHOW_PLAN.md §1.

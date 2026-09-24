@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { StandingsEntry } from '@connect-4/contract';
+import type { StandingsEntry } from '@acm-uga/c4-contract';
 import { sortStandings } from './standings.js';
 
 function entry(name: string, rank: number): StandingsEntry {

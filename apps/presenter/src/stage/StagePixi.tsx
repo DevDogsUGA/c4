@@ -24,7 +24,7 @@
 import './pixiExtend.js';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Application, useApplication } from '@pixi/react';
-import { TOKENS } from '@connect-4/theme/tokens';
+import { TOKENS } from '@acm-uga/c4-theme/tokens';
 import { computeRendererResolution, computeStageOffset, computeStageScale } from './layout.js';
 
 function useWindowSize(): { width: number; height: number } {

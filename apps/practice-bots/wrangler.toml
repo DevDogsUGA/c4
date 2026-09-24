@@ -1,4 +1,4 @@
-name = "connect-4-practice-bots"
+name = "c4-practice-bots"
 main = "src/index.ts"
 compatibility_date = "2024-09-19"
 

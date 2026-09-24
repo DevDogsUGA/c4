@@ -4,8 +4,8 @@
 // and NO Docker." Exported publicly so tests in this package (and other
 // packages/tools, e.g. fixture generation) can reuse it.
 
-import type { MoveRequest } from '@connect-4/contract';
-import { legalMoves } from '@connect-4/engine';
+import type { MoveRequest } from '@acm-uga/c4-contract';
+import { legalMoves } from '@acm-uga/c4-engine';
 import type { BotTransport, MoveOutcome } from '../types.js';
 
 /** Decides what a fake bot responds with for a given request. `callCount` is 0-based and increments across every `move()` call (including resends after a restart). */
@@ -21,7 +21,7 @@ export interface FakeBotTransportOptions {
 }
 
 function defaultScript(request: MoveRequest): MoveOutcome {
-  const legal = legalMoves(request.board as unknown as import('@connect-4/engine').Board);
+  const legal = legalMoves(request.board as unknown as import('@acm-uga/c4-engine').Board);
   return { type: 'ok', column: legal[0] ?? 0 };
 }
 

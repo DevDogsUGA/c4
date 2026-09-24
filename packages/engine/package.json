@@ -1,5 +1,5 @@
 {
-  "name": "@connect-4/engine",
+  "name": "@acm-uga/c4-engine",
   "version": "1.0.0",
   "description": "Pure game rules: board, legal moves, win/draw detection",
   "type": "module",

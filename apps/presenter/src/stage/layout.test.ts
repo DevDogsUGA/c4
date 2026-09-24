@@ -27,7 +27,7 @@ import {
   verticalStack,
 } from './layout.js';
 import type { AgendaSlide, ContentSlide, TitleSlide } from '../slides.js';
-import type { BracketMatch } from '@connect-4/contract';
+import type { BracketMatch } from '@acm-uga/c4-contract';
 import type { BracketRound } from '../bracket.js';
 import { splitBracket } from '../bracketLayout.js';
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { MatchRecord, StandingsEntry } from '@connect-4/contract';
+import type { MatchRecord, StandingsEntry } from '@acm-uga/c4-contract';
 import { alphabeticalOrder, finalOrder, marqueeLines, sortMoves } from './seeding.js';
 
 function entry(name: string, rank: number, wins = 0, losses = 0): StandingsEntry {

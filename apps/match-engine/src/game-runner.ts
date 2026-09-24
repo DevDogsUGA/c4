@@ -10,8 +10,8 @@
 // This module has zero Docker/network dependency: it only calls the
 // BotTransport interface, so it's fully exercised in tests with a fake.
 
-import { applyMove, checkWin, emptyBoard, isDraw, isLegalMove, type Board, type Player } from '@connect-4/engine';
-import type { ClockEvent, ForfeitReason, GameRecord, MoveRecord, MoveRequest, TeamSlot } from '@connect-4/contract';
+import { applyMove, checkWin, emptyBoard, isDraw, isLegalMove, type Board, type Player } from '@acm-uga/c4-engine';
+import type { ClockEvent, ForfeitReason, GameRecord, MoveRecord, MoveRequest, TeamSlot } from '@acm-uga/c4-contract';
 import { ChessClock } from './clock.js';
 import type { BotTransport, MoveOutcome } from './types.js';
 

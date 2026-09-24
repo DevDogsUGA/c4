@@ -1,6 +1,6 @@
 // Pure bracket-display logic.
 
-import type { BracketMatch } from '@connect-4/contract';
+import type { BracketMatch } from '@acm-uga/c4-contract';
 
 export interface BracketRound {
   round: string;

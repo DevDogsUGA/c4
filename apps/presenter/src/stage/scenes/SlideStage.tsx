@@ -31,7 +31,7 @@ import { Glow } from '../Glow.js';
 import { CornerFrame } from '../CornerFrame.js';
 import { usePixelTexture } from '../useTexture.js';
 import { driftOffset, twinkleAlpha } from '../particles.js';
-import { TOKENS } from '@connect-4/theme/tokens';
+import { TOKENS } from '@acm-uga/c4-theme/tokens';
 
 /**
  * The title slide's scatter dots with a slow ambient drift/twinkle

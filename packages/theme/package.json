@@ -1,5 +1,5 @@
 {
-  "name": "@connect-4/theme",
+  "name": "@acm-uga/c4-theme",
   "version": "1.0.0",
   "description": "Shared design tokens (colors, fonts) and board theme for the presenter and testground apps",
   "private": true,
@@ -20,7 +20,7 @@
     "build": "tsc"
   },
   "dependencies": {
-    "@connect-4/board-ui": "workspace:*",
+    "@acm-uga/c4-board-ui": "workspace:*",
     "@fontsource/spline-sans": "^5.3.0",
     "@fontsource/spline-sans-mono": "^5.3.0"
   },

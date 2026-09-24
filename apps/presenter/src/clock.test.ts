@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { GameRecord } from '@connect-4/contract';
+import type { GameRecord } from '@acm-uga/c4-contract';
 import {
   buildClockTimeline,
   CLOCK_CRITICAL_MS,

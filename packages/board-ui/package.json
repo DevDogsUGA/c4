@@ -1,5 +1,5 @@
 {
-  "name": "@connect-4/board-ui",
+  "name": "@acm-uga/c4-board-ui",
   "version": "1.0.0",
   "description": "Framework-free DOM/canvas board renderer with animated piece drops",
   "type": "module",
@@ -17,7 +17,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@connect-4/engine": "workspace:*"
+    "@acm-uga/c4-engine": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.6.0",

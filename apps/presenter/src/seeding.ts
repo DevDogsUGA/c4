@@ -5,7 +5,7 @@
 // component only needs to interpolate between the two orderings and render
 // the marquee strings.
 
-import type { MatchRecord, StandingsEntry } from '@connect-4/contract';
+import type { MatchRecord, StandingsEntry } from '@acm-uga/c4-contract';
 import { sortStandings } from './standings.js';
 
 /** Every entry, sorted alphabetically by team name (the reveal's starting order). */

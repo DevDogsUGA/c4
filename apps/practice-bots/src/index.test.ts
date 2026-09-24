@@ -5,7 +5,7 @@ import {
   type Board,
   legalMoves,
   checkWin,
-} from '@connect-4/engine';
+} from '@acm-uga/c4-engine';
 import { randomBot, greedyBot, minimaxBot } from './index.js';
 
 /**

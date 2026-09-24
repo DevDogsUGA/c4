@@ -1,5 +1,5 @@
 {
-  "name": "@connect-4/contract",
+  "name": "@acm-uga/c4-contract",
   "version": "1.0.0",
   "description": "Bot API types/schemas and game-record schema",
   "type": "module",

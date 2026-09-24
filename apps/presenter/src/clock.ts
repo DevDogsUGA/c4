@@ -6,7 +6,7 @@
 // point in the move list it occurred. Fully reconstructable from a
 // GameRecord alone -- no match-engine changes, no wall-clock dependency.
 
-import type { GameRecord } from '@connect-4/contract';
+import type { GameRecord } from '@acm-uga/c4-contract';
 
 /** Starting think budget per player per game, per DESIGN.md. */
 export const STARTING_CLOCK_MS = 10_000;

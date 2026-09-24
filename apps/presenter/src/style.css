@@ -1,6 +1,6 @@
 /* Projector aesthetics: dark, big, readable from the back of a room. */
 @import "tailwindcss";
-@import "@connect-4/theme";
+@import "@acm-uga/c4-theme";
 
 :root {
   color-scheme: dark;

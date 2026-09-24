@@ -1,6 +1,6 @@
 // Shared board-renderer theme for presenter and testground so both apps
 // render identical piece/board colors. See SHOW_PLAN.md §1 "Board theme".
-import type { BoardTheme } from '@connect-4/board-ui';
+import type { BoardTheme } from '@acm-uga/c4-board-ui';
 
 export const BOARD_THEME: Partial<BoardTheme> = {
   background: '#000000',

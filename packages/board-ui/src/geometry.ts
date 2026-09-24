@@ -2,7 +2,7 @@
 // separate from renderer.ts so it can be unit tested directly (ground rule:
 // pure logic is tested, rendering/DOM is not).
 
-/** A single cell coordinate. Mirrors @connect-4/engine's Coord shape. */
+/** A single cell coordinate. Mirrors @acm-uga/c4-engine's Coord shape. */
 export interface Coord {
   col: number;
   row: number;
@@ -57,7 +57,7 @@ export function computeGeometry(
 /**
  * Pixel center of cell (col, row) within a canvas of the given geometry.
  * Board rows are numbered bottom-up (row 0 = bottom, per DESIGN.md /
- * @connect-4/engine), but canvas y grows downward, so row is flipped here --
+ * @acm-uga/c4-engine), but canvas y grows downward, so row is flipped here --
  * this is the one place that translation happens.
  */
 export function cellCenter(col: number, row: number, geometry: BoardGeometry): { x: number; y: number } {

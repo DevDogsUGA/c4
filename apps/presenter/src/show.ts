@@ -6,7 +6,7 @@
 // -> outro slides. Keyboard wiring (space = advance, ArrowLeft = back)
 // lives in App.tsx; this module has no DOM.
 
-import type { BracketMatch, MatchRecord, StandingsEntry, TeamRef } from '@connect-4/contract';
+import type { BracketMatch, MatchRecord, StandingsEntry, TeamRef } from '@acm-uga/c4-contract';
 import type { TournamentData } from './records.js';
 import { sortStandings } from './standings.js';
 import { groupBracketByRound } from './bracket.js';

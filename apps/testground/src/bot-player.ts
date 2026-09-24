@@ -3,7 +3,7 @@
 // hanging the UI forever, and reporting every request/response exchange for
 // the debug panel.
 
-import type { Board, Player } from '@connect-4/engine';
+import type { Board, Player } from '@acm-uga/c4-engine';
 import { callBot, type BotCallResult, type BotFailureReason, type MoveRequestBody } from './protocol.js';
 import type { MoveFailureReason, MoveOutcome, MoveProvider } from './referee.js';
 

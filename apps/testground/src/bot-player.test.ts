@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { emptyBoard } from '@connect-4/engine';
+import { emptyBoard } from '@acm-uga/c4-engine';
 import { createBotPlayer } from './bot-player.js';
 
 function jsonResponse(body: unknown, status = 200): Response {

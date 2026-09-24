@@ -1,4 +1,4 @@
-// Thin React wrapper around @connect-4/board-ui's framework-free canvas
+// Thin React wrapper around @acm-uga/c4-board-ui's framework-free canvas
 // renderer. Owns the renderer's lifecycle (create on mount, destroy on
 // unmount/re-mount) via useRef + useEffect, per DESIGN.md's "testground and
 // presenter share the board-ui canvas renderer" invariant -- this file adds
@@ -6,9 +6,9 @@
 // BoardRenderer's imperative API.
 
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
-import { BoardRenderer, type Coord } from '@connect-4/board-ui';
-import type { Player } from '@connect-4/engine';
-import { BOARD_THEME } from '@connect-4/theme/board';
+import { BoardRenderer, type Coord } from '@acm-uga/c4-board-ui';
+import type { Player } from '@acm-uga/c4-engine';
+import { BOARD_THEME } from '@acm-uga/c4-theme/board';
 
 export interface BoardCanvasHandle {
   dropPiece(col: number, row: number, player: Player): Promise<void>;

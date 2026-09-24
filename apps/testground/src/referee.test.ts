@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Player } from '@connect-4/engine';
+import type { Player } from '@acm-uga/c4-engine';
 import { playGame, type GameEvent, type MoveOutcome, type MoveProvider } from './referee.js';
 
 /** Always plays the next column from a fixed script, ignoring board state. */

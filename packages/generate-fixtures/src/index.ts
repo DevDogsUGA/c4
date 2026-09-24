@@ -12,7 +12,7 @@ import {
   applyMove,
   checkWin,
   isDraw,
-} from '@connect-4/engine';
+} from '@acm-uga/c4-engine';
 import {
   type GameRecord,
   type MatchRecord,
@@ -20,8 +20,8 @@ import {
   MatchRecordSchema,
   TournamentSummarySchema,
   type GameOutcome,
-} from '@connect-4/contract';
-import { randomBot, greedyBot, minimaxBot } from '@connect-4/practice-bots';
+} from '@acm-uga/c4-contract';
+import { randomBot, greedyBot, minimaxBot } from '@acm-uga/c4-practice-bots';
 import {
   roundRobinPairings,
   computeStandings,
@@ -32,7 +32,7 @@ import {
   coinFlipSlot,
   toTeamRef,
   type Team,
-} from '@connect-4/match-engine';
+} from '@acm-uga/c4-match-engine';
 
 const __dirname = resolve(fileURLToPath(import.meta.url), '..');
 const FIXTURES_DIR = resolve(__dirname, '../fixtures');

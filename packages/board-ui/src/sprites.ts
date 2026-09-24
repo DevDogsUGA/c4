@@ -9,7 +9,7 @@
 // always a single `drawImage` blit per piece -- this is what keeps the
 // per-frame cost flat regardless of how many chips are on the board.
 
-import type { Player } from '@connect-4/engine';
+import type { Player } from '@acm-uga/c4-engine';
 import {
   CHIP_GRID_SIZE,
   chipGrid,
