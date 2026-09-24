@@ -37,7 +37,12 @@ crons = ["*/2 * * * *"]
 # header for /admin, in addition to Cloudflare Access itself gating the route at
 # the edge. Leave unset ("") to allow any address Access has already authenticated.
 ADMIN_EMAILS = ""
-# MODE is intentionally unset here: this top-level config is "both" routes
+# Safe default: the top-level Worker never serves admin routes. The admin
+# console is only reachable via `--env admin` (behind Access) or, for the
+# custom-domain topology, an explicit `--var MODE:both` deploy with Access
+# on the /admin path.
+MODE = "public"
+# (Historical note) MODE was previously unset here: this top-level config is "both" routes
 # in one Worker, for the custom-domain deployment (Access gates just the
 # /admin path at the edge, see the commented [[routes]] above).
 #
