@@ -1,0 +1,30 @@
+{
+  "name": "@acm-uga/c4-registry",
+  "version": "1.0.0",
+  "description": "Submission/registration Worker for the Connect Four hackathon: form intake, roster, arena results, public status page, admin",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p scripts/tsconfig.json --noEmit",
+    "dev": "wrangler dev --local",
+    "deploy": "wrangler deploy",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:migrate:local": "wrangler d1 migrations apply c4-registry --local",
+    "db:migrate:remote": "wrangler d1 migrations apply c4-registry --remote",
+    "staging-e2e": "tsx scripts/staging-e2e.ts"
+  },
+  "dependencies": {
+    "hono": "^4.6.0"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "0.8.0",
+    "@cloudflare/workers-types": "^4.20240909.0",
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0",
+    "wrangler": "^4.9.0"
+  }
+}

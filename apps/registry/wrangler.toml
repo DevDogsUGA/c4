@@ -1,0 +1,66 @@
+name = "c4-registry"
+main = "src/index.ts"
+compatibility_date = "2024-09-19"
+compatibility_flags = ["nodejs_compat"]
+account_id = "61d185ff419ef7bd5bd4b3d314081a49"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "c4-registry"
+database_id = "d2b2e6f9-c692-4937-9448-bdcb07b9ee6a"
+
+[triggers]
+crons = ["*/2 * * * *"]
+
+# TODO(deploy): once REGISTRY_HOST (the custom domain) is chosen, uncomment
+# this route and put Cloudflare Access in front of just the /admin path
+# (Access application path: REGISTRY_HOST/admin*). Everything else
+# (/, /api/*, /health) stays publicly reachable. This is the single-Worker
+# deployment; MODE is intentionally left unset so every route is served
+# from this one script (see MODE docs below).
+# [[routes]]
+# pattern = "REGISTRY_HOST"
+# custom_domain = true
+
+# Secrets (set with `wrangler secret put <NAME>`, never committed):
+#   FORM_HMAC_SECRET   - shared secret with the Apps Script HMAC signer
+#   ROSTER_TOKEN        - bearer token for GET /api/roster
+#   RESULTS_TOKEN        - bearer token for POST /api/results (arena machine)
+#   GITHUB_TOKEN        - GitHub REST API token (repo read scope) for cron refresh
+#   DISCORD_WEBHOOK_URL - webhook URL for registration/results notifications
+# Set them on BOTH `c4-registry` and `c4-registry-admin` if deploying the
+# split (workers.dev) topology below; each is deployed independently.
+#
+# Vars (plain, can live here or be set with `wrangler secret put` too):
+[vars]
+# Comma-separated allowlist checked against the Cf-Access-Authenticated-User-Email
+# header for /admin, in addition to Cloudflare Access itself gating the route at
+# the edge. Leave unset ("") to allow any address Access has already authenticated.
+ADMIN_EMAILS = ""
+# MODE is intentionally unset here: this top-level config is "both" routes
+# in one Worker, for the custom-domain deployment (Access gates just the
+# /admin path at the edge, see the commented [[routes]] above).
+#
+# On workers.dev, Access can only protect a whole hostname, not a path, so
+# deploy this same script as two separate Workers instead:
+#   wrangler deploy --var MODE:public          # -> c4-registry (this name)
+#   wrangler deploy --env admin                # -> c4-registry-admin, below
+# Put Cloudflare Access in front of the entire c4-registry-admin.workers.dev
+# host; leave c4-registry.workers.dev public.
+
+[env.admin]
+name = "c4-registry-admin"
+
+[env.admin.vars]
+ADMIN_EMAILS = ""
+MODE = "admin"
+
+[[env.admin.d1_databases]]
+binding = "DB"
+database_name = "c4-registry"
+database_id = "d2b2e6f9-c692-4937-9448-bdcb07b9ee6a"
+
+# No [env.admin.triggers]: the admin-only deployment doesn't run the repo
+# status cron (that belongs to the public/both deployment).
+[env.admin.triggers]
+crons = []
