@@ -331,6 +331,8 @@ function BoardPanel({ game, board, teamA, teamB, seatA, seatB, onWinCentroid, on
 const COIN_FLIGHT_MS = 1800;
 const COIN_BOUNCE_MS = 500;
 const COIN_LANDING_MS = COIN_FLIGHT_MS + COIN_BOUNCE_MS;
+/** ~5 spins/s, rounded to a whole number of spins over the flight so the coin lands face-up (scaleX back at +1) instead of snapping from its back face. */
+const COIN_SPIN_RATE = Math.round((COIN_LANDING_MS / 1000) * 5) / (COIN_LANDING_MS / 1000);
 
 function CoinFlipTheater({ teamName, moverSeat }: { teamName: string; moverSeat: 1 | 2 }) {
   const coinRef = useRef<PixiGraphics | null>(null);
@@ -359,11 +361,14 @@ function CoinFlipTheater({ teamName, moverSeat }: { teamName: string; moverSeat:
     const elapsed = performance.now() - startRef.current;
     const g = coinRef.current;
     if (g) {
-      const scaleX = elapsed < COIN_LANDING_MS ? coinSpinScaleX(elapsed, 5) : 1;
+      const scaleX = elapsed < COIN_LANDING_MS ? coinSpinScaleX(elapsed, COIN_SPIN_RATE) : 1;
       g.scale.x = scaleX;
+      // Two-sided: the front (scaleX >= 0, the face it lands on) is the
+      // first mover's piece color, the back is the other seat's.
+      const faceSeat = scaleX >= 0 ? moverSeat : moverSeat === 1 ? 2 : 1;
       g.clear();
       g.circle(0, 0, 52)
-        .fill(moverSeat === 1 ? TOKENS.bulldog : TOKENS.chalk)
+        .fill(faceSeat === 1 ? TOKENS.bulldog : TOKENS.chalk)
         .stroke({ width: 4, color: TOKENS.cardEdge });
     }
     const shake = shakeRef.current;

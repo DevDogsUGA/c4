@@ -366,11 +366,10 @@ export function seedingRowY(index: number): number {
 
 /**
  * Row rects (full table width, keyed by team name) for `names` in the given
- * order -- one endpoint of the alphabetical<->rank FLIP tween (§9c item 3).
- * Calling this with the alphabetical order and again with the final-rank
- * order (seeding.ts's `alphabeticalOrder`/`finalOrder`, mapped to names)
- * gives the timeline module's `track()` two same-keyed layouts to tween
- * between.
+ * order -- one frame of the seeding replay's FLIP tween (§9c item 3).
+ * Calling this for consecutive seeding.ts `seedingReplay` frames (or with
+ * `finalOrder`, mapped to names) gives the timeline module's `track()`
+ * same-keyed layouts to tween between.
  */
 export function seedingRowsLayout(names: readonly string[]): PlacedElement[] {
   const cols = seedingColumnLayout();
@@ -422,7 +421,9 @@ export function odometerDigitSlots(column: PlacedElement, digits = 2): PlacedEle
 
 export const BRACKET_CARD_WIDTH = 260;
 export const BRACKET_CARD_HEIGHT = 88;
-export const BRACKET_ROUND_GAP = 70;
+/** Horizontal gap between adjacent round columns: at least MIN (cards shrink below BRACKET_CARD_WIDTH to fit a wide draw), at most MAX (a small draw stays compact and centered instead of stretching to the stage edges). */
+export const BRACKET_MIN_ROUND_GAP = 40;
+export const BRACKET_MAX_ROUND_GAP = 110;
 export const BRACKET_MARGIN_X = 70;
 export const BRACKET_AREA_TOP = 210;
 export const BRACKET_AREA_HEIGHT = 760;
@@ -457,18 +458,43 @@ function predecessorSlot(slot: number, side: 'a' | 'b'): number {
   return side === 'a' ? slot * 2 : slot * 2 + 1;
 }
 
+interface BracketColumns {
+  /** Left edge of column `i` (0 = leftmost). */
+  x: (i: number) => number;
+  cardW: number;
+  gap: number;
+}
+
+/**
+ * Round columns for a draw `count` columns wide: cards as wide as
+ * BRACKET_CARD_WIDTH allows once every gap gets BRACKET_MIN_ROUND_GAP, gaps
+ * then stretched to fill the stage up to BRACKET_MAX_ROUND_GAP, and the
+ * whole tree centered -- so adjacent columns are always exactly one gap
+ * apart and every connector spans card edge to card edge.
+ */
+function bracketColumns(count: number): BracketColumns {
+  const available = STAGE_WIDTH - 2 * BRACKET_MARGIN_X;
+  const n = Math.max(1, count);
+  const cardW = Math.min(BRACKET_CARD_WIDTH, (available - (n - 1) * BRACKET_MIN_ROUND_GAP) / n);
+  const gap = n > 1 ? Math.min(BRACKET_MAX_ROUND_GAP, (available - n * cardW) / (n - 1)) : 0;
+  const startX = center(n * cardW + (n - 1) * gap, STAGE_WIDTH);
+  return { x: (i) => startX + i * (cardW + gap), cardW, gap };
+}
+
 /**
  * Lays out one side of the draw: round 0's cards spread evenly across
  * `areaTop..areaTop+areaHeight`; each later round's card is vertically
  * centered on the average y of its (up to two) predecessor cards, found by
  * `predecessorSlot` -- the same matching bracketLayout.ts's `splitBracket`
- * output relies on (slots are NOT re-based to 0 within a half). `direction`
- * is +1 for a left-to-right-growing half (left side) or -1 for a
- * right-to-left-growing half (right side, mirrored from `originX`).
+ * output relies on (slots are NOT re-based to 0 within a half).
+ * `columnOf(roundIndex)` picks each round's column; `direction` is +1 for a
+ * left-to-right-growing half (left side) or -1 for a right-to-left-growing
+ * half (right side).
  */
 function layoutHalf(
   rounds: readonly BracketRound[],
-  originX: number,
+  cols: BracketColumns,
+  columnOf: (roundIndex: number) => number,
   direction: 1 | -1,
   areaTop: number,
   areaHeight: number,
@@ -479,10 +505,7 @@ function layoutHalf(
   let prevRoundName: string | null = null;
 
   rounds.forEach((round, roundIndex) => {
-    const x =
-      direction === 1
-        ? originX + roundIndex * (BRACKET_CARD_WIDTH + BRACKET_ROUND_GAP)
-        : originX - roundIndex * (BRACKET_CARD_WIDTH + BRACKET_ROUND_GAP) - BRACKET_CARD_WIDTH;
+    const x = cols.x(columnOf(roundIndex));
     const nextCenters = new Map<number, number>();
 
     round.matches.forEach((match, i) => {
@@ -505,31 +528,23 @@ function layoutHalf(
         slot: match.slot,
         x,
         y: yCenter - BRACKET_CARD_HEIGHT / 2,
-        w: BRACKET_CARD_WIDTH,
+        w: cols.cardW,
         h: BRACKET_CARD_HEIGHT,
       };
       cards.push(box);
       nextCenters.set(match.slot, yCenter);
 
       if (roundIndex > 0 && prevRoundName !== null) {
-        const destX = direction === 1 ? box.x : box.x + box.w;
-        const midX = direction === 1 ? box.x - BRACKET_ROUND_GAP / 2 : box.x + box.w + BRACKET_ROUND_GAP / 2;
         for (const side of ['a', 'b'] as const) {
           const predSlot = predecessorSlot(match.slot, side);
           const predY = prevCenters.get(predSlot);
           if (predY === undefined) continue;
-          const predX = direction === 1 ? x - BRACKET_ROUND_GAP : x + BRACKET_CARD_WIDTH + BRACKET_ROUND_GAP;
           connectors.push({
             key: `${cardKey(round.round, match.slot)}-${side}`,
             fromKey: cardKey(prevRoundName, predSlot),
             toKey: cardKey(round.round, match.slot),
             side,
-            points: [
-              { x: predX, y: predY },
-              { x: midX, y: predY },
-              { x: midX, y: yCenter },
-              { x: destX, y: yCenter },
-            ],
+            points: elbow(box, predY, yCenter, direction === 1, cols.gap),
           });
         }
       }
@@ -543,6 +558,23 @@ function layoutHalf(
 }
 
 /**
+ * The elbow connector into `dest` from a predecessor card one column over
+ * (on the left if `fromLeft`): from the predecessor's facing edge at
+ * `fromY`, across to the gap's midpoint, along to `toY`, into `dest`'s edge.
+ */
+function elbow(dest: PlacedElement, fromY: number, toY: number, fromLeft: boolean, gap: number): { x: number; y: number }[] {
+  const destX = fromLeft ? dest.x : dest.x + dest.w;
+  const srcX = fromLeft ? destX - gap : destX + gap;
+  const midX = (srcX + destX) / 2;
+  return [
+    { x: srcX, y: fromY },
+    { x: midX, y: fromY },
+    { x: midX, y: toY },
+    { x: destX, y: toY },
+  ];
+}
+
+/**
  * Computes card boxes + connector paths for the whole two-sided (or
  * one-sided fallback) bracket, in 1920x1080 logical px. `split` comes from
  * bracketLayout.ts's `splitBracket` -- this function only turns that
@@ -552,18 +584,19 @@ export function layoutBracket(split: SplitBracket): BracketSceneLayout {
   const cards: BracketCardBox[] = [];
   const connectors: BracketConnector[] = [];
 
-  const left = layoutHalf(split.left, BRACKET_MARGIN_X, 1, BRACKET_AREA_TOP, BRACKET_AREA_HEIGHT);
+  // Columns: left half's rounds, the final, then the right half's rounds
+  // mirrored -- so a sided draw's final lands in the middle column.
+  const halfRounds = split.left.length;
+  const finalColumn = halfRounds;
+  const columnCount = halfRounds + (split.final ? 1 : 0) + (split.sided ? split.right.length : 0);
+  const cols = bracketColumns(columnCount);
+
+  const left = layoutHalf(split.left, cols, (r) => r, 1, BRACKET_AREA_TOP, BRACKET_AREA_HEIGHT);
   cards.push(...left.cards);
   connectors.push(...left.connectors);
 
   const right = split.sided
-    ? layoutHalf(
-        split.right,
-        STAGE_WIDTH - BRACKET_MARGIN_X,
-        -1,
-        BRACKET_AREA_TOP,
-        BRACKET_AREA_HEIGHT,
-      )
+    ? layoutHalf(split.right, cols, (r) => columnCount - 1 - r, -1, BRACKET_AREA_TOP, BRACKET_AREA_HEIGHT)
     : { cards: [], connectors: [], lastRoundCenters: new Map<number, number>() };
   cards.push(...right.cards);
   connectors.push(...right.connectors);
@@ -571,73 +604,57 @@ export function layoutBracket(split: SplitBracket): BracketSceneLayout {
   let finalBox: BracketCardBox | null = null;
   if (split.final) {
     const finalMatch = split.final.matches[0];
-    const leftCenter = left.lastRoundCenters.size > 0 ? [...left.lastRoundCenters.values()][0]! : STAGE_HEIGHT / 2;
-    const rightCenter = split.sided
-      ? right.lastRoundCenters.size > 0
-        ? [...right.lastRoundCenters.values()][0]!
-        : leftCenter
-      : leftCenter;
-    const yCenter = (leftCenter + rightCenter) / 2;
-    const x = center(BRACKET_CARD_WIDTH, STAGE_WIDTH);
-    finalBox = {
-      key: cardKey(split.final.round, finalMatch?.slot ?? 0),
-      round: split.final.round,
-      slot: finalMatch?.slot ?? 0,
-      x,
-      y: yCenter - BRACKET_CARD_HEIGHT / 2,
-      w: BRACKET_CARD_WIDTH,
-      h: BRACKET_CARD_HEIGHT,
-    };
+    const leftLastRound = split.left[split.left.length - 1];
+    const rightLastRound = split.sided ? split.right[split.right.length - 1] : undefined;
 
+    // Each final slot's predecessor is found by slot number, checked
+    // against BOTH halves' last round -- not just "a" <- left, "b" <-
+    // right. A one-sided (unsided) bracket puts every semifinal in
+    // `split.left`, so slot b's predecessor lives there too; hard-coding
+    // "b" to `rightLastRound` (which is empty/undefined there) would
+    // silently skip that connector and make `sideRevealed` treat the
+    // slot as having no predecessor at all -- i.e. always revealed,
+    // spoiling the result before that semifinal is even played.
+    const sources: { side: 'a' | 'b'; round: string; slot: number; y: number; fromLeft: boolean }[] = [];
     if (finalMatch) {
-      const key = finalBox.key;
-      const leftLastRound = split.left[split.left.length - 1];
-      const rightLastRound = split.sided ? split.right[split.right.length - 1] : undefined;
-
-      // Each final slot's predecessor is found by slot number, checked
-      // against BOTH halves' last round -- not just "a" <- left, "b" <-
-      // right. A one-sided (unsided) bracket puts every semifinal in
-      // `split.left`, so slot b's predecessor lives there too; hard-coding
-      // "b" to `rightLastRound` (which is empty/undefined there) would
-      // silently skip that connector and make `sideRevealed` treat the
-      // slot as having no predecessor at all -- i.e. always revealed,
-      // spoiling the result before that semifinal is even played.
       for (const side of ['a', 'b'] as const) {
         const predSlot = predecessorSlot(finalMatch.slot, side);
-        let source: { round: string; y: number; fromLeft: boolean } | null = null;
 
         const leftPred = leftLastRound?.matches.find((m) => m.slot === predSlot);
         const leftPredY = leftPred ? left.lastRoundCenters.get(leftPred.slot) : undefined;
         if (leftLastRound && leftPred && leftPredY !== undefined) {
-          source = { round: leftLastRound.round, y: leftPredY, fromLeft: true };
+          sources.push({ side, round: leftLastRound.round, slot: predSlot, y: leftPredY, fromLeft: true });
+          continue;
         }
 
-        if (!source) {
-          const rightPred = rightLastRound?.matches.find((m) => m.slot === predSlot);
-          const rightPredY = rightPred ? right.lastRoundCenters.get(rightPred.slot) : undefined;
-          if (rightLastRound && rightPred && rightPredY !== undefined) {
-            source = { round: rightLastRound.round, y: rightPredY, fromLeft: false };
-          }
+        const rightPred = rightLastRound?.matches.find((m) => m.slot === predSlot);
+        const rightPredY = rightPred ? right.lastRoundCenters.get(rightPred.slot) : undefined;
+        if (rightLastRound && rightPred && rightPredY !== undefined) {
+          sources.push({ side, round: rightLastRound.round, slot: predSlot, y: rightPredY, fromLeft: false });
         }
-
-        if (!source) continue;
-
-        const edgeX = source.fromLeft ? finalBox.x - BRACKET_ROUND_GAP : finalBox.x + finalBox.w + BRACKET_ROUND_GAP;
-        const midX = source.fromLeft ? finalBox.x - BRACKET_ROUND_GAP / 2 : finalBox.x + finalBox.w + BRACKET_ROUND_GAP / 2;
-        const destX = source.fromLeft ? finalBox.x : finalBox.x + finalBox.w;
-        connectors.push({
-          key: `${key}-${side}`,
-          fromKey: cardKey(source.round, predSlot),
-          toKey: finalBox.key,
-          side,
-          points: [
-            { x: edgeX, y: source.y },
-            { x: midX, y: source.y },
-            { x: midX, y: yCenter },
-            { x: destX, y: yCenter },
-          ],
-        });
       }
+    }
+
+    // Centered between its feeders (both semifinals in a one-sided draw).
+    const yCenter = sources.length > 0 ? sources.reduce((sum, src) => sum + src.y, 0) / sources.length : BRACKET_AREA_TOP + BRACKET_AREA_HEIGHT / 2;
+    finalBox = {
+      key: cardKey(split.final.round, finalMatch?.slot ?? 0),
+      round: split.final.round,
+      slot: finalMatch?.slot ?? 0,
+      x: cols.x(finalColumn),
+      y: yCenter - BRACKET_CARD_HEIGHT / 2,
+      w: cols.cardW,
+      h: BRACKET_CARD_HEIGHT,
+    };
+
+    for (const src of sources) {
+      connectors.push({
+        key: `${finalBox.key}-${src.side}`,
+        fromKey: cardKey(src.round, src.slot),
+        toKey: finalBox.key,
+        side: src.side,
+        points: elbow(finalBox, src.y, yCenter, src.fromLeft, cols.gap),
+      });
     }
   }
 

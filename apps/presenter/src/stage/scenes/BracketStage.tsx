@@ -32,13 +32,14 @@ import {
   bracketNameRowBox,
   bracketRound1NamePositions,
   layoutBracket,
+  seedingColumnLayout,
   seedingRowsLayout,
   STAGE_WIDTH,
   type BracketCardBox,
   type BracketConnector,
   type BracketSceneLayout,
 } from '../layout.js';
-import { easeInCubic, easeInOutCubic, easeOutBack, easeOutCubic, chain, track, type Track } from '../timeline.js';
+import { easeInCubic, easeInOutCubic, easeOutBack, easeOutCubic, chain, hold, track, type Track } from '../timeline.js';
 import { useTimelineRefs, type TimelineRefs } from '../useTimeline.js';
 import { eyebrowTextStyle, rowTextStyle } from '../textStyles.js';
 import { ParticleField } from '../ParticleField.js';
@@ -170,17 +171,24 @@ export function BracketStage({
       const settledNames = finalOrder(morphFromStandings).map((e) => e.team.name);
       const seedingPositions = new Map(seedingRowsLayout(settledNames).map((r) => [r.key, r]));
       const destinations = bracketRound1NamePositions(split, bracketLayout);
+      // Name text is left-anchored and vertically centered (NameSlot), so
+      // both endpoints are the name's left edge at its row's vertical
+      // center: the seeding table's name column, and the bracket name row.
+      const seedingNameX = seedingColumnLayout().name.x;
       settledNames.forEach((name, i) => {
         const from = seedingPositions.get(name);
         const to = destinations.get(name);
         const t0 = i * MORPH_STAGGER_MS;
-        if (from && to) {
-          tracks.push(track({ key: `morph-${name}`, prop: 'x', t0, t1: t0 + MORPH_DURATION_MS, from: from.x, to: to.x, ease: easeOutCubic }));
-          tracks.push(track({ key: `morph-${name}`, prop: 'y', t0, t1: t0 + MORPH_DURATION_MS, from: from.y, to: to.y, ease: easeOutCubic }));
-        } else if (from) {
+        if (!from) return;
+        const fromY = from.y + from.h / 2;
+        // Hold at the seeding position until this name's staggered start.
+        tracks.push(hold(`morph-${name}`, 'x', seedingNameX, 0, 0));
+        tracks.push(hold(`morph-${name}`, 'y', fromY, 0, 0));
+        if (to) {
+          tracks.push(track({ key: `morph-${name}`, prop: 'x', t0, t1: t0 + MORPH_DURATION_MS, from: seedingNameX, to: to.x, ease: easeOutCubic }));
+          tracks.push(track({ key: `morph-${name}`, prop: 'y', t0, t1: t0 + MORPH_DURATION_MS, from: fromY, to: to.y + to.h / 2, ease: easeOutCubic }));
+        } else {
           // Non-qualifier: fade out in place.
-          tracks.push(track({ key: `morph-${name}`, prop: 'x', t0: 0, t1: 0, from: from.x, to: from.x }));
-          tracks.push(track({ key: `morph-${name}`, prop: 'y', t0: 0, t1: 0, from: from.y, to: from.y }));
           tracks.push(track({ key: `morph-${name}`, prop: 'alpha', t0, t1: t0 + MORPH_DURATION_MS, from: 1, to: 0, ease: easeOutCubic }));
         }
       });
@@ -189,7 +197,8 @@ export function BracketStage({
     // --- Items 2/3: winner travel + loser tumble (the just-decided card). ---
     if (decidedCard && loserSide && justEliminated) {
       const box = bracketNameRowBox(decidedCard, loserSide);
-      tracks.push(track({ key: `slot-${decidedCard.key}-${loserSide}`, prop: 'y', t0: 0, t1: TUMBLE_DURATION_MS, from: box.y, to: box.y + 220, ease: easeInCubic }));
+      const y = box.y + box.h / 2;
+      tracks.push(track({ key: `slot-${decidedCard.key}-${loserSide}`, prop: 'y', t0: 0, t1: TUMBLE_DURATION_MS, from: y, to: y + 220, ease: easeInCubic }));
       tracks.push(track({ key: `slot-${decidedCard.key}-${loserSide}`, prop: 'rotation', t0: 0, t1: TUMBLE_DURATION_MS, from: 0, to: 0.35, ease: easeInCubic }));
       tracks.push(track({ key: `slot-${decidedCard.key}-${loserSide}`, prop: 'alpha', t0: 150, t1: TUMBLE_DURATION_MS, from: 1, to: 0, ease: easeInCubic }));
     }
@@ -202,7 +211,8 @@ export function BracketStage({
         const box = bracketNameRowBox(decidedCard, side);
         const direction = side === 'a' ? -1 : 1;
         const key = `slot-${decidedCard.key}-${side}`;
-        tracks.push(track({ key, prop: 'y', t0: 0, t1: TUMBLE_DURATION_MS, from: box.y, to: box.y + 220, ease: easeInCubic }));
+        const y = box.y + box.h / 2;
+        tracks.push(track({ key, prop: 'y', t0: 0, t1: TUMBLE_DURATION_MS, from: y, to: y + 220, ease: easeInCubic }));
         tracks.push(track({ key, prop: 'rotation', t0: 0, t1: TUMBLE_DURATION_MS, from: 0, to: direction * 0.35, ease: easeInCubic }));
         tracks.push(track({ key, prop: 'alpha', t0: 150, t1: TUMBLE_DURATION_MS, from: 1, to: 0, ease: easeInCubic }));
       }
@@ -213,7 +223,7 @@ export function BracketStage({
       const to = bracketNameRowBox(destinationCard, outgoingConnector.side);
       const slotKey = `slot-${outgoingConnector.toKey}-${outgoingConnector.side}`;
       tracks.push(track({ key: slotKey, prop: 'x', t0: 0, t1: TRAVEL_DURATION_MS, from: from.x, to: to.x, ease: easeInOutCubic }));
-      tracks.push(track({ key: slotKey, prop: 'y', t0: 0, t1: TRAVEL_DURATION_MS, from: from.y, to: to.y, ease: easeOutBack }));
+      tracks.push(track({ key: slotKey, prop: 'y', t0: 0, t1: TRAVEL_DURATION_MS, from: from.y + from.h / 2, to: to.y + to.h / 2, ease: easeOutBack }));
       tracks.push(
         ...chain({
           key: `flash-${slotKey}`,

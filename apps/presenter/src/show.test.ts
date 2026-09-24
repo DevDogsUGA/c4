@@ -10,7 +10,7 @@ import {
   type TournamentData,
 } from './records.js';
 import { bracketRevealKey, buildShowScript, ShowController, scenePhaseCount, type Scene } from './show.js';
-import { INTRO_SLIDES, OUTRO_SLIDES } from './slides.js';
+import { INTRO_SLIDES } from './slides.js';
 
 const fixturesDir = fileURLToPath(new URL('../fixtures/', import.meta.url));
 
@@ -55,10 +55,12 @@ describe('buildShowScript', () => {
     expect(scenes.filter((s) => s.type === 'seeding')).toHaveLength(1);
   });
 
-  it("the seeding scene carries the marquee and this tournament's standings", () => {
+  it("the seeding scene carries the marquee, this tournament's standings, and one replay frame per round-robin match", () => {
     const seeding = scenes[INTRO_SLIDES.length] as Extract<Scene, { type: 'seeding' }>;
     expect(seeding.standings.length).toBe(data.summary.standings.length);
     expect(seeding.marquee.length).toBeGreaterThan(0);
+    const roundRobinCount = data.matches.filter((m) => m.phase === 'roundrobin').length;
+    expect(seeding.replay).toHaveLength(roundRobinCount + 2);
   });
 
   it('follows the seeding scene with the initial two-sided bracket scene', () => {
@@ -123,15 +125,8 @@ describe('buildShowScript', () => {
     expect(champion!.team!.name).toBe(finalMatch.teams[winnerSlot!]!.name);
   });
 
-  it('places the champion scene right before the outro slides', () => {
-    const championIndex = scenes.findIndex((s) => s.type === 'champion');
-    expect(championIndex).toBeGreaterThan(-1);
-    expect(scenes.slice(championIndex + 1).map((s) => s.type)).toEqual(OUTRO_SLIDES.map(() => 'slide'));
-  });
-
-  it('closes with the outro slide deck, in order', () => {
-    const tail = scenes.slice(scenes.length - OUTRO_SLIDES.length);
-    expect(tail.map((s) => (s as Extract<Scene, { type: 'slide' }>).slide)).toEqual(OUTRO_SLIDES);
+  it('closes the show with the champion scene', () => {
+    expect(scenes[scenes.length - 1]!.type).toBe('champion');
   });
 });
 
@@ -143,7 +138,7 @@ describe('bracketRevealKey', () => {
 
 describe('scenePhaseCount', () => {
   it('is 2 for a seeding scene (start table -> settled)', () => {
-    expect(scenePhaseCount({ type: 'seeding', standings: [], marquee: [] })).toBe(2);
+    expect(scenePhaseCount({ type: 'seeding', standings: [], replay: [], marquee: [] })).toBe(2);
   });
 
   it('is 1 for a slide/bracket/champion scene', () => {
@@ -176,7 +171,7 @@ describe('scenePhaseCount', () => {
 
 describe('ShowController', () => {
   const slideScene = (): Scene => ({ type: 'slide', slide: INTRO_SLIDES[0]! });
-  const seedingScene = (): Scene => ({ type: 'seeding', standings: [], marquee: [] });
+  const seedingScene = (): Scene => ({ type: 'seeding', standings: [], replay: [], marquee: [] });
 
   it('starts at the first scene, first phase', () => {
     const controller = new ShowController([slideScene()]);
@@ -305,10 +300,8 @@ describe('buildShowScript with double forfeits (fixtures/tournament.json)', () =
     expect(champion!.team).toBeNull();
   });
 
-  it('places the no-champion scene right before the outro slides, same as a normal champion', () => {
-    const championIndex = scenes.findIndex((s) => s.type === 'champion');
-    expect(championIndex).toBeGreaterThan(-1);
-    expect(scenes.slice(championIndex + 1).map((s) => s.type)).toEqual(OUTRO_SLIDES.map(() => 'slide'));
+  it('closes the show with the no-champion scene, same as a normal champion', () => {
+    expect(scenes[scenes.length - 1]!.type).toBe('champion');
   });
 
   it('the round-robin double forfeit produces a "vs. — double forfeit" marquee line, not a "def." line', () => {

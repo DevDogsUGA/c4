@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import type { MatchRecord, StandingsEntry } from '@acm-uga/c4-contract';
-import { alphabeticalOrder, finalOrder, marqueeLines, sortMoves } from './seeding.js';
+import {
+  SEEDING_STEP_MAX_MS,
+  SEEDING_STEP_MIN_MS,
+  alphabeticalOrder,
+  finalOrder,
+  marqueeLines,
+  seedingReplay,
+  seedingStepMs,
+} from './seeding.js';
 
 function entry(name: string, rank: number, wins = 0, losses = 0): StandingsEntry {
   return {
@@ -41,37 +49,10 @@ describe('finalOrder', () => {
   });
 });
 
-describe('sortMoves', () => {
-  it('maps each team from its alphabetical index to its final-rank index', () => {
-    // Alphabetical: Alpha(0), Bravo(1), Charlie(2)
-    // Final rank:   Charlie(1) -> 0, Alpha(3) -> 2, Bravo(2) -> 1
-    const input = [entry('Charlie', 1, 3, 0), entry('Alpha', 3, 0, 3), entry('Bravo', 2, 1, 2)];
-    const moves = sortMoves(input);
-
-    expect(moves.map((m) => m.name)).toEqual(['Alpha', 'Bravo', 'Charlie']);
-
-    const alpha = moves.find((m) => m.name === 'Alpha')!;
-    expect(alpha).toMatchObject({ fromIndex: 0, toIndex: 2, wins: 0, losses: 3 });
-
-    const bravo = moves.find((m) => m.name === 'Bravo')!;
-    expect(bravo).toMatchObject({ fromIndex: 1, toIndex: 1, wins: 1, losses: 2 });
-
-    const charlie = moves.find((m) => m.name === 'Charlie')!;
-    expect(charlie).toMatchObject({ fromIndex: 2, toIndex: 0, wins: 3, losses: 0 });
-  });
-
-  it('handles tied ranks without throwing and keeps a stable toIndex per team', () => {
-    const input = [entry('First', 1), entry('TiedA', 2), entry('TiedB', 2)];
-    const moves = sortMoves(input);
-    const toIndexes = moves.map((m) => m.toIndex);
-    expect(new Set(toIndexes).size).toBe(3);
-  });
-});
-
 function match(
   teamA: string,
   teamB: string,
-  winnerTeam: 0 | 1,
+  winnerTeam: 0 | 1 | null,
   gamesWon: [number, number],
   phase: 'roundrobin' | 'bracket' = 'roundrobin',
 ): MatchRecord {
@@ -112,5 +93,72 @@ describe('marqueeLines', () => {
 
   it('returns an empty array for no matches', () => {
     expect(marqueeLines([])).toEqual([]);
+  });
+});
+
+describe('seedingReplay', () => {
+  const summary = (frame: { rows: { name: string; wins: number; losses: number }[] }) =>
+    frame.rows.map((r) => `${r.name} ${r.wins}-${r.losses}`);
+
+  it('opens on every team alphabetical at 0-0', () => {
+    const frames = seedingReplay([entry('Charlie', 1), entry('Alpha', 2), entry('Bravo', 3)], []);
+    expect(summary(frames[0]!)).toEqual(['Alpha 0-0', 'Bravo 0-0', 'Charlie 0-0']);
+    expect(frames[0]!.winner).toBeNull();
+  });
+
+  it('adds one frame per round-robin match, crediting the winner and re-sorting by record', () => {
+    const standings = [entry('Charlie', 1, 2, 0), entry('Bravo', 2, 1, 1), entry('Alpha', 3, 0, 2)];
+    const frames = seedingReplay(standings, [
+      match('Alpha', 'Charlie', 1, [0, 2]),
+      match('Bravo', 'Alpha', 0, [2, 1]),
+      match('Charlie', 'Bravo', 0, [2, 0]),
+    ]);
+
+    expect(frames).toHaveLength(5);
+    expect(summary(frames[1]!)).toEqual(['Charlie 1-0', 'Bravo 0-0', 'Alpha 0-1']);
+    expect(frames[1]!.winner).toBe('Charlie');
+    expect(summary(frames[2]!)).toEqual(['Charlie 1-0', 'Bravo 1-0', 'Alpha 0-2']);
+    expect(frames[2]!.winner).toBe('Bravo');
+    expect(summary(frames[3]!)).toEqual(['Charlie 2-0', 'Bravo 1-1', 'Alpha 0-2']);
+  });
+
+  it('keeps the previous relative order for teams with equal records', () => {
+    const standings = [entry('Alpha', 1, 1, 0), entry('Bravo', 2, 1, 0), entry('Charlie', 3, 0, 1), entry('Delta', 4, 0, 1)];
+    const frames = seedingReplay(standings, [match('Charlie', 'Delta', 1, [0, 2]), match('Alpha', 'Bravo', 1, [0, 2])]);
+    expect(summary(frames[1]!)).toEqual(['Delta 1-0', 'Alpha 0-0', 'Bravo 0-0', 'Charlie 0-1']);
+    expect(summary(frames[2]!)).toEqual(['Delta 1-0', 'Bravo 1-0', 'Alpha 0-1', 'Charlie 0-1']);
+  });
+
+  it('closes on the official rank order and records, so upstream tie-breaks land', () => {
+    const standings = [entry('Bravo', 1, 1, 0), entry('Alpha', 2, 1, 0)];
+    const frames = seedingReplay(standings, [match('Alpha', 'Bravo', 0, [2, 0])]);
+    const last = frames[frames.length - 1]!;
+    expect(summary(last)).toEqual(['Bravo 1-0', 'Alpha 1-0']);
+    expect(last.winner).toBeNull();
+  });
+
+  it('counts a double forfeit as a loss for both teams, with no winner', () => {
+    const frames = seedingReplay([entry('Alpha', 1), entry('Bravo', 2)], [match('Alpha', 'Bravo', null, [0, 0])]);
+    expect(summary(frames[1]!)).toEqual(['Alpha 0-1', 'Bravo 0-1']);
+    expect(frames[1]!.winner).toBeNull();
+  });
+
+  it('skips bracket matches', () => {
+    const frames = seedingReplay([entry('Alpha', 1), entry('Bravo', 2)], [match('Alpha', 'Bravo', 0, [2, 0], 'bracket')]);
+    expect(frames).toHaveLength(2);
+  });
+});
+
+describe('seedingStepMs', () => {
+  it('slows to the max for a small round robin', () => {
+    expect(seedingStepMs(3)).toBe(SEEDING_STEP_MAX_MS);
+  });
+
+  it('speeds up to the min for a large round robin', () => {
+    expect(seedingStepMs(200)).toBe(SEEDING_STEP_MIN_MS);
+  });
+
+  it('spreads a mid-size round robin over the target duration', () => {
+    expect(seedingStepMs(50)).toBe(600);
   });
 });
