@@ -1,7 +1,13 @@
 {
   "name": "Crash Loop Rust",
   "template": "rust",
-  "members": ["Sample Bot"],
-  "expect": { "kind": "game_forfeit", "reason": "crash_loop", "notes": "unbounded recursion (stack overflow) once several moves have been played; keeps crashing every restart until the clock drains" },
+  "members": [
+    "Sample Bot"
+  ],
+  "expect": {
+    "kind": "game_forfeit",
+    "reason": "clock_expired",
+    "notes": "unbounded recursion (stack overflow) once several moves have been played; the bot crashes on every restart. Each restart costs ~hundreds of ms, so at a 5 s per-game budget the clock drains before the engine's 20-restarts-per-move crash_loop threshold is reached: the recorded forfeit is clock_expired (observed on the 64-core arena). crash_loop itself is covered by exit-zero-node."
+  },
   "strength": 1
 }
