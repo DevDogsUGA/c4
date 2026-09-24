@@ -11,6 +11,9 @@ export const TEST_ENV = env as unknown as {
   GITHUB_TOKEN: string;
   DISCORD_WEBHOOK_URL: string;
   ADMIN_EMAILS: string;
+  MODE?: 'public' | 'admin' | 'both';
+  ACCESS_TEAM_DOMAIN?: string;
+  ACCESS_AUD?: string;
 };
 
 let counter = 0;

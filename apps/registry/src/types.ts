@@ -7,14 +7,30 @@ export interface Env {
   DISCORD_WEBHOOK_URL: string;
   ADMIN_EMAILS?: string;
   /**
+   * Zero Trust team domain (e.g. "devdogs.cloudflareaccess.com") used to
+   * fetch Access's public keys (`https://<domain>/cdn-cgi/access/certs`)
+   * and to check the JWT `iss` claim. Required for admin routes to work;
+   * they 503 ("admin not configured") without it.
+   */
+  ACCESS_TEAM_DOMAIN?: string;
+  /**
+   * The Access application's Audience (AUD) tag, checked against the JWT
+   * `aud` claim. Required for admin routes to work; they 503 without it.
+   */
+  ACCESS_AUD?: string;
+  /**
    * Selects which routes this deployment serves, for splitting the Worker
    * across two workers.dev hosts (Cloudflare Access can only gate a whole
    * hostname there, not a path):
-   *   - unset      -> everything (single-Worker custom-domain deployment)
-   *   - 'public'   -> /, /health, /api/form, /api/roster, /api/results, cron
-   *   - 'admin'    -> /admin* only (also aliased at /); everything else 404s
+   *   - unset/'public' -> /, /health, /api/form, /api/roster, /api/results,
+   *                        cron; no admin routes (safe default)
+   *   - 'admin'         -> /admin* only (also aliased at /); everything
+   *                        else 404s
+   *   - 'both'          -> everything, including /admin*, from one Worker
+   *                        (single-Worker custom-domain deployment, where
+   *                        Cloudflare Access gates just the /admin path)
    */
-  MODE?: 'public' | 'admin';
+  MODE?: 'public' | 'admin' | 'both';
 }
 
 export type TeamEnv = 'production' | 'staging';

@@ -5,7 +5,7 @@ import { postDiscord, shortSha } from './discord';
 import { teamsToCsv } from './csv';
 import { renderAdminPage, renderStatusPage } from './render';
 import { refreshAllRepoStatuses } from './cron';
-import { isAllowedAdminEmail } from './admin-auth';
+import { authenticateAdmin } from './admin-auth';
 import {
   deleteTeam,
   getLatestResult,
@@ -29,26 +29,50 @@ const app = new Hono<{ Bindings: Env }>();
 // Env.MODE). On workers.dev, Cloudflare Access can only protect an entire
 // hostname, so the public-facing host must never expose /admin, and the
 // admin-only host must expose nothing else. On a custom domain, Access can
-// gate just the /admin path on a single Worker, so MODE is left unset there
-// and every route is served (current, pre-split behavior).
+// gate just the /admin path on a single Worker, so that deployment uses
+// MODE=both and every route is served from the one script.
+//
+// MODE unset is treated the same as 'public' — the safe default is to never
+// serve admin routes unless a deployment opts in explicitly.
 // ---------------------------------------------------------------------------
 
+/**
+ * True if `pathname` refers to an /admin route, robust to casing and
+ * (possibly nested/double) percent-encoding — e.g. "/Admin", "/admin%2f..",
+ * "/%2E%2E/admin" all count. This is defense in depth on top of Hono's own
+ * (case-sensitive, already-decoded) route matching: nothing should let an
+ * alternate spelling of /admin slip past this gate in 'public' mode.
+ */
 function isAdminPath(pathname: string): boolean {
-  return pathname === '/admin' || pathname.startsWith('/admin/');
+  let decoded = pathname;
+  for (let i = 0; i < 5; i++) {
+    let next: string;
+    try {
+      next = decodeURIComponent(decoded);
+    } catch {
+      break;
+    }
+    if (next === decoded) break;
+    decoded = next;
+  }
+  const normalized = decoded.toLowerCase().replace(/\/+/g, '/');
+  return normalized === '/admin' || normalized.startsWith('/admin/');
 }
 
 app.use('*', async (c, next) => {
-  const mode = c.env.MODE;
-  if (!mode) return next();
-
+  const mode = c.env.MODE ?? 'public';
   const pathname = new URL(c.req.url).pathname;
+
+  if (mode === 'both') return next();
+
   if (mode === 'admin') {
     // The admin worker also serves the admin UI at "/" since it has no
     // other reason to exist on its own host.
     if (pathname === '/' || isAdminPath(pathname)) return next();
     return c.notFound();
   }
-  // mode === 'public'
+
+  // mode === 'public' (including MODE unset)
   if (isAdminPath(pathname)) return c.notFound();
   return next();
 });
@@ -229,18 +253,32 @@ app.post('/api/results', async (c) => {
 });
 
 // ---------------------------------------------------------------------------
-// Admin (Cloudflare Access at the edge; header check here as defense in depth)
+// Admin
+//
+// Cloudflare Access gates these routes at the edge, but that alone isn't
+// enough: the Cf-Access-Authenticated-User-Email header it sets is just a
+// plain header, forgeable by anyone who can reach the Worker directly (a
+// workers.dev URL, or any Access path rule that doesn't match some
+// casing/encoding of the request). So every admin route here independently
+// verifies the Cf-Access-Jwt-Assertion JWT (or CF_Authorization cookie)
+// against Access's public keys and takes the email from its verified
+// `email` claim — never from the plain header. See src/admin-auth.ts.
 // ---------------------------------------------------------------------------
 
-function adminEmail(c: { req: { header: (n: string) => string | undefined }; env: Env }): string | null {
-  const email = c.req.header('Cf-Access-Authenticated-User-Email');
-  if (!isAllowedAdminEmail(email, c.env.ADMIN_EMAILS)) return null;
-  return email as string;
+/** Runs Access JWT verification + the ADMIN_EMAILS allowlist; returns the
+ * verified email, or a ready-to-return error response (403/503). */
+async function requireAdmin(
+  c: Context<{ Bindings: Env }>,
+): Promise<{ email: string } | { error: Response }> {
+  const result = await authenticateAdmin(c);
+  if (!result.ok) return { error: c.json({ error: result.error }, result.status) };
+  return { email: result.email };
 }
 
 async function renderAdminRoute(c: Context<{ Bindings: Env }>) {
-  const email = adminEmail(c);
-  if (!email) return c.json({ error: 'unauthorized' }, 401);
+  const auth = await requireAdmin(c);
+  if ('error' in auth) return auth.error;
+  const { email } = auth;
 
   const teams = await listTeams(c.env.DB);
   const statusRows = await listRepoStatuses(c.env.DB);
@@ -262,8 +300,8 @@ async function renderAdminRoute(c: Context<{ Bindings: Env }>) {
 app.get('/admin', renderAdminRoute);
 
 app.post('/admin/staging/:id/delete', async (c) => {
-  const email = adminEmail(c);
-  if (!email) return c.json({ error: 'unauthorized' }, 401);
+  const auth = await requireAdmin(c);
+  if ('error' in auth) return auth.error;
 
   const origin = c.req.header('Origin');
   if (origin && origin !== new URL(c.req.url).origin) {
@@ -284,8 +322,8 @@ app.post('/admin/staging/:id/delete', async (c) => {
 });
 
 app.post('/admin/competition-started', async (c) => {
-  const email = adminEmail(c);
-  if (!email) return c.json({ error: 'unauthorized' }, 401);
+  const auth = await requireAdmin(c);
+  if ('error' in auth) return auth.error;
 
   // CSRF-safe: only accept same-origin submissions (Cloudflare Access's own
   // auth cookie would otherwise make this endpoint a cross-site POST target).
@@ -312,8 +350,8 @@ app.post('/admin/competition-started', async (c) => {
 });
 
 app.get('/admin/roster.csv', async (c) => {
-  const email = adminEmail(c);
-  if (!email) return c.json({ error: 'unauthorized' }, 401);
+  const auth = await requireAdmin(c);
+  if ('error' in auth) return auth.error;
   const teams = await listTeams(c.env.DB);
   return c.text(teamsToCsv(teams), 200, {
     'Content-Type': 'text/csv; charset=utf-8',

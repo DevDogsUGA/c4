@@ -12,15 +12,13 @@ database_id = "d2b2e6f9-c692-4937-9448-bdcb07b9ee6a"
 [triggers]
 crons = ["*/2 * * * *"]
 
-# TODO(deploy): once REGISTRY_HOST (the custom domain) is chosen, uncomment
-# this route and put Cloudflare Access in front of just the /admin path
-# (Access application path: REGISTRY_HOST/admin*). Everything else
-# (/, /api/*, /health) stays publicly reachable. This is the single-Worker
-# deployment; MODE is intentionally left unset so every route is served
-# from this one script (see MODE docs below).
-# [[routes]]
-# pattern = "REGISTRY_HOST"
-# custom_domain = true
+# Single-Worker deployment on the custom domain, with Cloudflare Access in
+# front of just the /admin path (Access application path: c4.devdogsuga.org/admin*).
+# Everything else (/, /api/*, /health) stays publicly reachable from this
+# same Worker — see MODE=both below.
+[[routes]]
+pattern = "c4.devdogsuga.org"
+custom_domain = true
 
 # Secrets (set with `wrangler secret put <NAME>`, never committed):
 #   FORM_HMAC_SECRET   - shared secret with the Apps Script HMAC signer
@@ -33,32 +31,60 @@ crons = ["*/2 * * * *"]
 #
 # Vars (plain, can live here or be set with `wrangler secret put` too):
 [vars]
-# Comma-separated allowlist checked against the Cf-Access-Authenticated-User-Email
-# header for /admin, in addition to Cloudflare Access itself gating the route at
-# the edge. Leave unset ("") to allow any address Access has already authenticated.
+# Comma-separated allowlist checked against the *verified* Access JWT email
+# claim for /admin, in addition to Cloudflare Access itself gating the route
+# at the edge. Leave unset ("") to allow any address Access has authenticated.
 ADMIN_EMAILS = ""
-# Safe default: the top-level Worker never serves admin routes. The admin
-# console is only reachable via `--env admin` (behind Access) or, for the
-# custom-domain topology, an explicit `--var MODE:both` deploy with Access
-# on the /admin path.
-MODE = "public"
-# (Historical note) MODE was previously unset here: this top-level config is "both" routes
-# in one Worker, for the custom-domain deployment (Access gates just the
-# /admin path at the edge, see the commented [[routes]] above).
+# This deployment (c4.devdogsuga.org) serves every route, including /admin,
+# from one Worker — Cloudflare Access gates just the /admin path at the edge
+# (see [[routes]] and the Access application above).
+MODE = "both"
 #
-# On workers.dev, Access can only protect a whole hostname, not a path, so
-# deploy this same script as two separate Workers instead:
+# REQUIRED wherever admin routes are actually served (MODE=admin or
+# MODE=both, i.e. here) — admin routes fail closed with 503 "admin not
+# configured" until both are set, rather than trusting any header:
+#
+#   ACCESS_TEAM_DOMAIN - your Zero Trust team domain, e.g.
+#                         "devdogs.cloudflareaccess.com". Zero Trust dash ->
+#                         Settings -> Custom Pages shows it, or read it off
+#                         the URL you're redirected to when logging in to
+#                         any Access application for this team.
+#   ACCESS_AUD          - the Access application's Audience (AUD) tag. Zero
+#                         Trust dash -> Access -> Applications -> (the
+#                         c4.devdogsuga.org/admin* app) -> Overview ->
+#                         "Application Audience (AUD) Tag".
+#
+# Left blank here on purpose (not secret, but deployment-specific) — set at
+# deploy time:
+#   wrangler deploy --var ACCESS_TEAM_DOMAIN:devdogs.cloudflareaccess.com --var ACCESS_AUD:<aud-tag>
+# ...or fill in the values below directly once known.
+ACCESS_TEAM_DOMAIN = ""
+ACCESS_AUD = ""
+#
+# Alternative topology: on workers.dev, Access can only protect a whole
+# hostname, not a path, so deploy this same script as two separate Workers
+# instead:
 #   wrangler deploy --var MODE:public          # -> c4-registry (this name)
 #   wrangler deploy --env admin                # -> c4-registry-admin, below
 # Put Cloudflare Access in front of the entire c4-registry-admin.workers.dev
-# host; leave c4-registry.workers.dev public.
+# host; leave c4-registry.workers.dev public. (This also means dropping the
+# [[routes]] custom-domain binding above, which only applies to this name.)
 
 [env.admin]
 name = "c4-registry-admin"
+# Don't inherit the top-level [[routes]] custom-domain binding — env.admin
+# is the workers.dev alternative topology and must never steal
+# c4.devdogsuga.org away from the top-level (MODE=both) Worker.
+routes = []
 
 [env.admin.vars]
 ADMIN_EMAILS = ""
 MODE = "admin"
+# REQUIRED (see the comment on ACCESS_TEAM_DOMAIN/ACCESS_AUD above) — the
+# admin deployment 503s on every /admin route until these are set:
+#   wrangler deploy --env admin --var ACCESS_TEAM_DOMAIN:devdogs.cloudflareaccess.com --var ACCESS_AUD:<aud-tag>
+ACCESS_TEAM_DOMAIN = ""
+ACCESS_AUD = ""
 
 [[env.admin.d1_databases]]
 binding = "DB"
