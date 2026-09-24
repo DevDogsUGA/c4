@@ -1,0 +1,19 @@
+{
+  "name": "@acm-uga/c4-samples",
+  "version": "1.0.0",
+  "description": "Cross-language conformance suite and sample bots for the Connect Four hackathon templates",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "conformance": "tsx src/conformance/run.ts",
+    "corpus:generate": "tsx src/conformance/generate-corpus.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0",
+    "tsx": "^4.19.0"
+  }
+}

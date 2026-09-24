@@ -1,0 +1,6 @@
+{
+  "name": "Reference (C++)",
+  "template": "cpp",
+  "expect": { "kind": "normal" },
+  "conformance": true
+}

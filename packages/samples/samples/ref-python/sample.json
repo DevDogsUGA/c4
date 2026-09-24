@@ -1,0 +1,6 @@
+{
+  "name": "Reference (Python)",
+  "template": "python",
+  "expect": { "kind": "normal" },
+  "conformance": true
+}
