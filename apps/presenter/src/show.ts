@@ -2,8 +2,8 @@
 // script of scenes, and a phase-aware state machine for stepping through
 // them. Per SHOW_PLAN.md §4: intro slides -> a live-sort seeding reveal ->
 // the initial two-sided bracket -> one (match replay, bracket-with-result)
-// pair per played bracket match, in elimination order -> a champion scene
-// -> outro slides. Keyboard wiring (space = advance, ArrowLeft = back)
+// pair per played bracket match, in elimination order -> a champion scene.
+// Keyboard wiring (space = advance, ArrowLeft = back)
 // lives in App.tsx; this module has no DOM.
 
 import type { BracketMatch, MatchRecord, StandingsEntry, TeamRef } from '@acm-uga/c4-contract';
@@ -11,9 +11,9 @@ import type { TournamentData } from './records.js';
 import { sortStandings } from './standings.js';
 import { groupBracketByRound } from './bracket.js';
 import { splitBracket, type SplitBracket } from './bracketLayout.js';
-import { marqueeLines } from './seeding.js';
+import { marqueeLines, seedingReplay, type SeedingFrame } from './seeding.js';
 import { buildMatchPhases, type MatchPhase } from './matchPhases.js';
-import { INTRO_SLIDES, OUTRO_SLIDES, type Slide } from './slides.js';
+import { INTRO_SLIDES, type Slide } from './slides.js';
 
 /**
  * Identifies a slot in the bracket independent of whether it's been played
@@ -31,7 +31,7 @@ export interface MatchBracketContext {
 
 export type Scene =
   | { type: 'slide'; slide: Slide }
-  | { type: 'seeding'; standings: StandingsEntry[]; marquee: string[] }
+  | { type: 'seeding'; standings: StandingsEntry[]; replay: SeedingFrame[]; marquee: string[] }
   | {
       type: 'bracket';
       layout: SplitBracket;
@@ -48,8 +48,8 @@ export type Scene =
 
 /**
  * How many discrete phases a host steps through within one scene before
- * `advance()` moves on to the next scene. Seeding is 2 (start table -> live
- * sort settling); a match scene has one phase per `buildMatchPhases` entry
+ * `advance()` moves on to the next scene. Seeding is 2 (start table -> the
+ * match-by-match replay, which auto-plays); a match scene has one phase per `buildMatchPhases` entry
  * (dual/coinflip/single/walkover/result); every other scene is a single
  * beat.
  */
@@ -62,7 +62,7 @@ export function scenePhaseCount(scene: Scene): number {
 /**
  * Builds the ordered scene script for the whole show:
  *   1. the intro slide deck (slides.ts, unmodified)
- *   2. one seeding-reveal scene (live sort + results marquee)
+ *   2. one seeding-reveal scene (match-by-match replay + results marquee)
  *   3. an initial two-sided bracket scene, with byes already revealed
  *      (there's no match to build suspense from) and every other slot
  *      hidden/TBD
@@ -70,8 +70,8 @@ export function scenePhaseCount(scene: Scene): number {
  *      slot order within a round): a match-replay scene, followed by a
  *      bracket scene with that match's winner advanced and loser
  *      eliminated
- *   5. a champion scene, derived from the final round's winner
- *   6. the outro slide deck
+ *   5. a champion scene, derived from the final round's winner (the last
+ *      scene of the show)
  *
  * Bracket matches with no `match_id` (not-yet-played slots) are skipped;
  * the bracket scene itself still shows them as TBD.
@@ -84,6 +84,7 @@ export function buildShowScript(data: TournamentData): Scene[] {
   scenes.push({
     type: 'seeding',
     standings: sortStandings(data.summary.standings),
+    replay: seedingReplay(data.summary.standings, data.matches),
     marquee: marqueeLines(data.matches),
   });
 
@@ -157,8 +158,6 @@ export function buildShowScript(data: TournamentData): Scene[] {
     // isDoubleForfeit for the match-level check this mirrors).
     if (finalDecided) scenes.push({ type: 'champion', team: champion });
   }
-
-  for (const slide of OUTRO_SLIDES) scenes.push({ type: 'slide', slide });
 
   return scenes;
 }

@@ -446,6 +446,69 @@ describe('layoutBracket', () => {
   });
 });
 
+describe('layoutBracket geometry', () => {
+  function roundsOf(teamCount: number): BracketRound[] {
+    const rounds: BracketRound[] = [];
+    for (let matches = teamCount / 2, r = 1; matches >= 1; matches /= 2, r++) {
+      const name = matches === 1 ? 'Final' : `Round ${r}`;
+      rounds.push({ round: name, matches: Array.from({ length: matches }, (_, slot) => bracketMatch(name, slot)) });
+    }
+    return rounds;
+  }
+
+  function allCards(layout: ReturnType<typeof layoutBracket>) {
+    return layout.final ? [...layout.cards, layout.final] : layout.cards;
+  }
+
+  for (const teams of [4, 8, 16]) {
+    it(`starts and ends every connector on a card edge, with no gap (${teams} teams)`, () => {
+      const layout = layoutBracket(splitBracket(roundsOf(teams)));
+      const cards = allCards(layout);
+      for (const connector of layout.connectors) {
+        const from = cards.find((c) => c.key === connector.fromKey)!;
+        const to = cards.find((c) => c.key === connector.toKey)!;
+        const start = connector.points[0]!;
+        const end = connector.points[connector.points.length - 1]!;
+        const fromLeft = from.x < to.x;
+        expect(start.x).toBeCloseTo(fromLeft ? from.x + from.w : from.x);
+        expect(start.y).toBeCloseTo(from.y + from.h / 2);
+        expect(end.x).toBeCloseTo(fromLeft ? to.x : to.x + to.w);
+        expect(end.y).toBeCloseTo(to.y + to.h / 2);
+      }
+    });
+
+    it(`keeps every card on stage and non-overlapping (${teams} teams)`, () => {
+      const cards = allCards(layoutBracket(splitBracket(roundsOf(teams))));
+      for (const card of cards) {
+        expect(card.x).toBeGreaterThanOrEqual(0);
+        expect(card.x + card.w).toBeLessThanOrEqual(STAGE_WIDTH);
+      }
+      for (const a of cards) {
+        for (const b of cards) {
+          if (a === b) continue;
+          const overlapX = a.x < b.x + b.w && b.x < a.x + a.w;
+          const overlapY = a.y < b.y + b.h && b.y < a.y + a.h;
+          expect(overlapX && overlapY).toBe(false);
+        }
+      }
+    });
+  }
+
+  it('centers the final vertically between both semifinals in a one-sided draw', () => {
+    const layout = layoutBracket(splitBracket(roundsOf(4)));
+    const semis = layout.cards.map((c) => c.y + c.h / 2);
+    expect(semis).toHaveLength(2);
+    expect(layout.final!.y + layout.final!.h / 2).toBeCloseTo((semis[0]! + semis[1]!) / 2);
+  });
+
+  it('centers a small draw horizontally instead of pinning it to the left edge', () => {
+    const cards = allCards(layoutBracket(splitBracket(roundsOf(4))));
+    const minX = Math.min(...cards.map((c) => c.x));
+    const maxX = Math.max(...cards.map((c) => c.x + c.w));
+    expect((minX + maxX) / 2).toBeCloseTo(STAGE_WIDTH / 2);
+  });
+});
+
 describe('bracketRound1NamePositions', () => {
   it('maps every round-1 team name to a box inside its round-1 card', () => {
     const split = splitBracket(eightTeamRounds());

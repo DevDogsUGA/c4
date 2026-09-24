@@ -29,6 +29,7 @@ describe('describeScene', () => {
     const scene: Scene = {
       type: 'seeding',
       standings: [standingsEntry('Alpha'), standingsEntry('Beta')],
+      replay: [],
       marquee: [],
     };
     expect(describeScene(scene)).toEqual({

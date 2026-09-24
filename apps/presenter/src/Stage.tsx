@@ -52,7 +52,7 @@ function StageScene({ scene, phaseIndex, prevScene }: { scene: Scene; phaseIndex
     case 'slide':
       return <SlideStage slide={scene.slide} />;
     case 'seeding':
-      return <SeedingStage standings={scene.standings} marquee={scene.marquee} phaseIndex={phaseIndex} />;
+      return <SeedingStage standings={scene.standings} replay={scene.replay} marquee={scene.marquee} phaseIndex={phaseIndex} />;
     case 'bracket':
       return (
         <BracketStage
