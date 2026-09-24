@@ -54,9 +54,15 @@
 //     the `c4.arena=1` / `c4.run=<runId>` labels so leftovers from a crashed
 //     engine process can be found and swept independently of this module's
 //     own (best-effort) cleanup.
+import { execFile } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { readdir } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { promisify } from 'node:util';
 import Docker from 'dockerode';
+
+const execFileAsync = promisify(execFile);
 
 export class StartupTimeoutError extends Error {
   constructor(message = 'bot did not become healthy within the startup grace period') {
@@ -109,6 +115,22 @@ export interface ContainerRuntime {
    * "startup_timeout" match forfeit per DESIGN.md.
    */
   start(options: StartOptions): Promise<ContainerHandle>;
+
+  /**
+   * Builds (once) and caches the image for `repoDir`, so subsequent
+   * `start()` calls for the same `repoDir` reuse it instead of rebuilding.
+   * Returns the built image tag. Throws ImageBuildError on failure (see
+   * buildImage / BUILD_TIMEOUT_MS).
+   */
+  prepare?(repoDir: string): Promise<string>;
+
+  /**
+   * Removes every image this runtime instance built (via `prepare` or an
+   * uncached `start`), best-effort. Never called automatically — a caller
+   * opts in (e.g. `c4 run-tournament --cleanup-images`) since the default
+   * is to keep images around so reruns are fast.
+   */
+  cleanupImages?(): Promise<void>;
 }
 
 const ONE_CPU_NANOS = 1_000_000_000;
@@ -120,6 +142,77 @@ const TMP_TMPFS_OPTS = 'rw,size=64m,mode=1777,nosuid,nodev';
 const HEALTH_POLL_INTERVAL_MS = 200;
 /** Cap on how long a single restart's health wait is allowed to run before giving up and reporting elapsed time; prevents one crash-looping bot from hanging the orchestrator forever. */
 const RESTART_HEALTH_CAP_MS = 30_000;
+/** Hard cap on a single `docker build`. Prevents one team's pathological Dockerfile (huge context, an infinite RUN step, a hung package-manager prompt) from tying up a build slot — and thus other teams' prepare sweep — indefinitely. */
+const BUILD_TIMEOUT_MS = 10 * 60_000;
+/** How many trailing lines of `docker build` output to keep for ImageBuildError's detail message. */
+const BUILD_LOG_TAIL_LINES = 40;
+
+/**
+ * Bounds how many `docker build`s run at once across this whole process,
+ * independent of however many teams' prepare() calls are in flight
+ * concurrently (prepare.ts's own concurrency knob is sized for the
+ * lighter checkout/git step, not for CPU/IO-heavy image builds). Shared by
+ * every DockerContainerRuntime instance in the process, since they all
+ * point at the same Docker daemon and host CPU.
+ */
+export class Semaphore {
+  private available: number;
+  private readonly waiters: Array<() => void> = [];
+
+  constructor(concurrency: number) {
+    this.available = Math.max(1, concurrency);
+  }
+
+  async acquire(): Promise<() => void> {
+    if (this.available > 0) {
+      this.available--;
+      return () => this.release();
+    }
+    await new Promise<void>((resolve) => this.waiters.push(resolve));
+    this.available--;
+    return () => this.release();
+  }
+
+  private release(): void {
+    this.available++;
+    const next = this.waiters.shift();
+    if (next) next();
+  }
+}
+
+/** min(8, cpus/4): builds are CPU/IO heavy, so prepare's build step is throttled well below the (much higher) match/checkout concurrency. */
+export function defaultBuildConcurrency(availableCpus: number = os.cpus().length): number {
+  return Math.max(1, Math.min(8, Math.floor(availableCpus / 4)));
+}
+
+const buildSemaphore = new Semaphore(defaultBuildConcurrency());
+
+/** Docker repository:tag names must be lowercase and limited to `[a-z0-9._-]`. */
+export function sanitizeTagComponent(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9._-]+/g, '-').replace(/^[-.]+|[-.]+$/g, '') || 'x';
+}
+
+/**
+ * Deterministic image tag for a team + commit, per TASK 1: `c4-bot-<safe
+ * team>-<short sha>`. Reads the commit straight out of the checkout
+ * (`git rev-parse HEAD` in repoDir) rather than threading it through the
+ * BotProvider.prepare(repoDir) signature, since checkoutRepoAtCommit
+ * (git.ts) already leaves repoDir checked out at the exact frozen commit —
+ * this keeps the BotProvider interface (and every fake implementing it)
+ * unchanged while still getting a build-once-per-commit cache key.
+ */
+export async function imageTagFor(repoDir: string): Promise<string> {
+  const team = sanitizeTagComponent(path.basename(repoDir));
+  let shortSha = 'nocommit';
+  try {
+    const { stdout } = await execFileAsync('git', ['-C', repoDir, 'rev-parse', 'HEAD'], { timeout: 30_000 });
+    shortSha = stdout.trim().slice(0, 12) || shortSha;
+  } catch {
+    // Not a git checkout (e.g. a unit-test fixture dir) — fall back to a
+    // stable placeholder rather than failing prepare over tag cosmetics.
+  }
+  return `c4-bot-${team}-${sanitizeTagComponent(shortSha)}`;
+}
 
 /** Labels stamped on every container/network/image this module creates, so leftovers from a crashed engine process can be found (`docker ... --filter label=c4.arena=1`) independent of this module's own best-effort cleanup. */
 function arenaLabels(runId: string): Record<string, string> {
@@ -149,42 +242,151 @@ async function waitForHealthy(baseUrl: string, timeoutMs: number): Promise<{ hea
   }
 }
 
-async function buildImage(docker: Docker, repoDir: string, tag: string, labels: Record<string, string>): Promise<void> {
-  const entries = await readdir(repoDir);
-  const stream = await docker.buildImage({ context: repoDir, src: entries }, { t: tag, labels });
-  await new Promise<void>((resolve, reject) => {
-    docker.modem.followProgress(
-      stream,
-      (err: Error | null, output: Array<{ error?: string; errorDetail?: { message?: string } }>) => {
-        if (err) return reject(new ImageBuildError(err.message));
-        const failure = output.find((entry) => entry && entry.error);
-        if (failure) {
-          return reject(new ImageBuildError(failure.errorDetail?.message ?? failure.error ?? 'unknown build error'));
-        }
-        resolve();
-      },
-    );
-  });
+/** Runs one `docker build`, bounded by the shared build semaphore and a hard wall-clock timeout, with a trailing-log tail captured for ImageBuildError's detail. */
+async function buildImage(
+  docker: Docker,
+  repoDir: string,
+  tag: string,
+  labels: Record<string, string>,
+  timeoutMs: number = BUILD_TIMEOUT_MS,
+): Promise<void> {
+  const release = await buildSemaphore.acquire();
+  try {
+    const entries = await readdir(repoDir);
+    const stream = await docker.buildImage({ context: repoDir, src: entries }, { t: tag, labels });
+
+    const tail: string[] = [];
+    const pushTail = (line: string): void => {
+      for (const part of line.split('\n')) {
+        const trimmed = part.trim();
+        if (!trimmed) continue;
+        tail.push(trimmed);
+        if (tail.length > BUILD_LOG_TAIL_LINES) tail.shift();
+      }
+    };
+
+    let timedOut = false;
+    const buildPromise = new Promise<void>((resolve, reject) => {
+      docker.modem.followProgress(
+        stream,
+        (err: Error | null, output: Array<{ error?: string; errorDetail?: { message?: string }; stream?: string }>) => {
+          if (timedOut) return; // the outer race already settled; avoid an unhandled rejection.
+          if (err) return reject(new ImageBuildError(withTail(err.message, tail)));
+          const failure = output.find((entry) => entry && entry.error);
+          if (failure) {
+            return reject(
+              new ImageBuildError(withTail(failure.errorDetail?.message ?? failure.error ?? 'unknown build error', tail)),
+            );
+          }
+          resolve();
+        },
+        (event: { stream?: string; status?: string }) => {
+          if (event.stream) pushTail(event.stream);
+          else if (event.status) pushTail(event.status);
+        },
+      );
+    });
+
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeoutPromise = new Promise<void>((_, reject) => {
+      timer = setTimeout(() => {
+        timedOut = true;
+        reject(new ImageBuildError(withTail(`build timed out after ${Math.round(timeoutMs / 1000)}s`, tail)));
+      }, timeoutMs);
+      (timer as unknown as { unref?: () => void }).unref?.();
+    });
+
+    try {
+      await Promise.race([buildPromise, timeoutPromise]);
+    } finally {
+      if (timer) clearTimeout(timer);
+      // Swallow a late rejection/resolution from the loser of the race so it
+      // never surfaces as an unhandled rejection.
+      buildPromise.catch(() => undefined);
+    }
+  } finally {
+    release();
+  }
+}
+
+function withTail(message: string, tail: readonly string[]): string {
+  if (tail.length === 0) return message;
+  return `${message}\n--- build log tail ---\n${tail.join('\n')}`;
 }
 
 export class DockerContainerRuntime implements ContainerRuntime {
   private readonly docker: Docker;
   private readonly runId: string;
+  /** repoDir -> prebuilt image tag, populated by `prepare()`. `start()` for a cached repoDir reuses the image and skips the build entirely. */
+  private readonly preparedImages = new Map<string, string>();
+  /** Every image tag this runtime instance has built (prepared or ad hoc), for `cleanupImages()`. */
+  private readonly builtImageTags = new Set<string>();
 
   constructor(docker: Docker = new Docker(), runId: string = randomUUID()) {
     this.docker = docker;
     this.runId = runId;
   }
 
+  /**
+   * Builds (once) and caches the image for `repoDir`, tagged deterministically
+   * from the team name + checked-out commit (see imageTagFor). A second
+   * `prepare()` call for a repoDir that already resolves to the same tag is a
+   * no-op (idempotent) rather than a rebuild — e.g. a re-run against the same
+   * frozen commit reuses the still-cached image instead of building again.
+   */
+  async prepare(repoDir: string): Promise<string> {
+    const tag = await imageTagFor(repoDir);
+    if (this.preparedImages.get(repoDir) === tag && (await this.imageExists(tag))) {
+      return tag;
+    }
+    const labels = arenaLabels(this.runId);
+    await buildImage(this.docker, repoDir, tag, labels);
+    this.preparedImages.set(repoDir, tag);
+    this.builtImageTags.add(tag);
+    return tag;
+  }
+
+  private async imageExists(tag: string): Promise<boolean> {
+    return this.docker
+      .getImage(tag)
+      .inspect()
+      .then(() => true)
+      .catch(() => false);
+  }
+
+  /** Removes every image this runtime instance built (via `prepare` or an uncached `start`). Best-effort; never throws. Opt-in only — see the ContainerRuntime interface doc. */
+  async cleanupImages(): Promise<void> {
+    await Promise.all(
+      [...this.builtImageTags].map((tag) =>
+        this.docker
+          .getImage(tag)
+          .remove({ force: true })
+          .catch(() => undefined),
+      ),
+    );
+    this.builtImageTags.clear();
+    this.preparedImages.clear();
+  }
+
   async start(options: StartOptions): Promise<ContainerHandle> {
     const { repoDir, port, healthGraceMs } = options;
     const id = randomUUID();
-    const imageTag = `c4-bot-${id}`;
     const networkName = `c4-net-${id}`;
     const portKey = `${port}/tcp`;
     const labels = arenaLabels(this.runId);
 
-    await buildImage(this.docker, repoDir, imageTag, labels);
+    // Reuse the prebuilt image from `prepare()` when this exact repoDir was
+    // prepared ahead of time (TASK 1: build each team's image once per
+    // tournament) — otherwise fall back to the pre-existing per-call
+    // ephemeral build (e.g. `c4 run-match`'s ad hoc one-off matches, or any
+    // BotProvider.start() call that never went through prepare()).
+    let imageTag = this.preparedImages.get(repoDir);
+    const isEphemeralImage = !imageTag;
+    if (!imageTag) {
+      imageTag = `c4-bot-${id}`;
+      await buildImage(this.docker, repoDir, imageTag, labels);
+      this.builtImageTags.add(imageTag);
+    }
 
     // `Internal: true` blocks all egress (no default route, no NAT); the
     // arena reaches the bot via its container IP on this bridge instead of
@@ -220,10 +422,17 @@ export class DockerContainerRuntime implements ContainerRuntime {
     const disposeAll = async (): Promise<void> => {
       await container.remove({ force: true }).catch(() => undefined);
       await network.remove().catch(() => undefined);
-      // Each match builds a uniquely-tagged image (see imageTag above); without
-      // this, a multi-match tournament leaks one image per container started,
-      // unbounded, for the lifetime of the host.
-      await this.docker.getImage(imageTag).remove({ force: true }).catch(() => undefined);
+      // A per-call ephemeral image (no prepare() cache hit) is uniquely
+      // tagged for this one container and must be removed here, or a
+      // multi-match tournament leaks one image per container started,
+      // unbounded, for the lifetime of the host. A *prepared* (TASK 1:
+      // build-once) image is shared across every match the team plays —
+      // removing it here would break every subsequent match for that team,
+      // so it's left alone; cleanupImages() (opt-in, end of tournament)
+      // removes it instead.
+      if (isEphemeralImage) {
+        await this.docker.getImage(imageTag).remove({ force: true }).catch(() => undefined);
+      }
     };
 
     try {

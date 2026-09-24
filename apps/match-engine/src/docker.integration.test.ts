@@ -14,8 +14,9 @@
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { DockerContainerRuntime } from './docker/container-runtime.js';
+import Docker from 'dockerode';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { DockerContainerRuntime, ImageBuildError } from './docker/container-runtime.js';
 import { DockerBotProvider } from './docker/docker-bot-provider.js';
 import { orchestrateMatch } from './match-orchestrator.js';
 import { createSeededRng } from './rng.js';
@@ -129,5 +130,58 @@ describe.skipIf(!RUN_DOCKER_TESTS)('Docker integration (real containers)', () =>
       expect(['four_in_a_row', 'draw', 'forfeit']).toContain(record.games[0].outcome.type);
     },
     120_000,
+  );
+
+  // TASK 1 (match-engine build-once-per-team): prepare() builds a single
+  // image, labeled for this run; every subsequent start() call for the same
+  // repoDir reuses it (no rebuild) until cleanupImages() is opted into.
+  it(
+    'prepare() builds exactly once per repoDir; start() reuses the prebuilt image; cleanupImages() removes it only when asked',
+    async () => {
+      const docker = new Docker();
+      const buildSpy = vi.spyOn(docker, 'buildImage');
+      const runtime = new DockerContainerRuntime(docker, 'a1c-build-once-it');
+
+      const tag = await runtime.prepare(botADir);
+      expect(buildSpy).toHaveBeenCalledTimes(1);
+
+      // A second prepare() for the same (still-cached) tag is a no-op.
+      const tagAgain = await runtime.prepare(botADir);
+      expect(tagAgain).toBe(tag);
+      expect(buildSpy).toHaveBeenCalledTimes(1);
+
+      const info = await docker.getImage(tag).inspect();
+      expect(info.Config.Labels?.['c4.arena']).toBe('1');
+      expect(info.Config.Labels?.['c4.run']).toBe('a1c-build-once-it');
+
+      // Two matches' worth of start()/dispose() against the same repoDir
+      // must not trigger a second build.
+      const h1 = await runtime.start({ repoDir: botADir, port: 8000, healthGraceMs: 30_000 });
+      await h1.dispose();
+      const h2 = await runtime.start({ repoDir: botADir, port: 8000, healthGraceMs: 30_000 });
+      await h2.dispose();
+      expect(buildSpy).toHaveBeenCalledTimes(1);
+
+      // The shared image must survive both per-match dispose() calls (default: keep).
+      await expect(docker.getImage(tag).inspect()).resolves.toBeTruthy();
+
+      // Only cleanupImages() (the opt-in path) removes it.
+      await runtime.cleanupImages();
+      await expect(docker.getImage(tag).inspect()).rejects.toThrow();
+    },
+    120_000,
+  );
+
+  it(
+    'prepare() surfaces a broken build as ImageBuildError with a readable detail (build_failed forfeit path)',
+    async () => {
+      const brokenDir = path.join(workDir, 'broken-bot');
+      await mkdir(brokenDir, { recursive: true });
+      await writeFile(brokenDir + '/Dockerfile', 'FROM python:3.12-alpine\nRUN this-command-does-not-exist\n', 'utf8');
+
+      const runtime = new DockerContainerRuntime(new Docker(), 'a1c-build-fail-it');
+      await expect(runtime.prepare(brokenDir)).rejects.toBeInstanceOf(ImageBuildError);
+    },
+    60_000,
   );
 });

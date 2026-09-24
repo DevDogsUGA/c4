@@ -12,7 +12,7 @@ import { Command } from 'commander';
 import Docker from 'dockerode';
 import { DockerContainerRuntime } from './docker/container-runtime.js';
 import { DockerBotProvider } from './docker/docker-bot-provider.js';
-import { checkoutRepo, checkoutRepoAtCommit } from './git.js';
+import { checkoutRepoAtCommit } from './git.js';
 import { freeze, readLockFile, writeLockFile, type LockFile } from './lock.js';
 import { orchestrateMatch } from './match-orchestrator.js';
 import { prepareTeams, type PreparedTeam } from './prepare.js';
@@ -23,7 +23,7 @@ import { matchConcurrency } from './scheduler.js';
 import { runTournament } from './tournament-runner.js';
 import type { MatchForfeitReason } from '@acm-uga/c4-contract';
 import type { Team } from './types.js';
-import { validateAll, type ValidateOptions, type ValidateTeamResult } from './validate.js';
+import { validateTeam } from './validate.js';
 import { writeMatchRecord } from './output.js';
 
 const program = new Command();
@@ -96,6 +96,11 @@ program
   .option('--concurrency <n>', 'max matches run in parallel (default: host-sized)', (v) => Number(v))
   .option('--bundle <path>', 'also write the single-file tournament bundle to this path')
   .option('--upload-r2', 'upload the bundle to R2 and print a 7-day presigned GET URL', false)
+  .option(
+    '--cleanup-images',
+    'remove every image this run built (labeled c4.run=<run id>) once the tournament finishes; default is to keep them so a rerun against the same commits is fast',
+    false,
+  )
   .action(async (opts) => {
     const teams = await loadRoster(opts.roster);
     const rng = createSeededRng(opts.seed ?? defaultSeed());
@@ -158,6 +163,11 @@ program
       const url = await presignGetUrl(creds, key);
       console.log(`Uploaded bundle to R2. Presigned GET URL (valid 7 days):\n${url}`);
     }
+
+    if (opts.cleanupImages) {
+      console.error('Cleaning up prepared images for this run...');
+      await provider.cleanupPreparedImages();
+    }
   });
 
 program
@@ -175,9 +185,25 @@ program
     const workDir = path.resolve(opts.workDir);
     const concurrency = opts.concurrency ?? matchConcurrency(os.cpus().length);
 
-    const results = await validateAllBounded(teams, {
+    // Same prepare path run-tournament uses (TASK 1: checkout once, build
+    // once via provider.prepare) — `validate` wants "whatever is on the
+    // branch right now" (DESIGN.md's "pull all"), so this deliberately
+    // omits `lock`, which resolves each team's current default-branch
+    // commit implicitly, exactly like the old checkoutRepo("latest") path
+    // did. The build failure/startup-timeout surfaces here exactly as it
+    // would during freeze/prepare for a real tournament run, and a
+    // successful prepare leaves the image cached for the smoke /move test
+    // below to reuse (no second build).
+    const prepared = await prepareTeams(teams, {
       provider,
-      resolveRepoDir: (team) => checkoutRepo(team, workDir),
+      workDir,
+      botPort: opts.port,
+      healthGraceMs: opts.healthGraceMs,
+      concurrency,
+    });
+
+    const results = await validateAllBounded(prepared, {
+      provider,
       botPort: opts.port,
       healthGraceMs: opts.healthGraceMs,
     }, concurrency);
@@ -208,31 +234,50 @@ interface ValidateJsonResult {
   ms: number;
 }
 
-function inferStage(detail: string): ValidateJsonResult['stage'] {
-  if (detail.startsWith('checkout failed')) return 'checkout';
-  if (detail.includes('/health')) return 'health';
-  if (detail.startsWith('build/start failed')) return 'build';
-  return 'smoke';
+/** Maps a prepare.ts forfeit reason onto validate --json's `stage` vocabulary. */
+function stageForForfeit(reason: MatchForfeitReason): ValidateJsonResult['stage'] {
+  if (reason === 'checkout_failed') return 'checkout';
+  if (reason === 'startup_timeout') return 'health';
+  return 'build'; // build_failed
 }
 
+interface ValidateBoundedOptions {
+  provider: DockerBotProvider;
+  botPort?: number;
+  healthGraceMs?: number;
+}
+
+/**
+ * Turns a prepare.ts sweep (checkout + build-once, already run by the
+ * caller) into validate --json's per-team results: a prepared team that's
+ * already known broken is reported without touching Docker again; a
+ * healthy one gets one additional smoke /move, which reuses the image
+ * `prepareTeams` just built via `provider.prepare` (see DockerBotProvider)
+ * instead of building a second time.
+ */
 async function validateAllBounded(
-  teams: Team[],
-  options: ValidateOptions,
+  prepared: PreparedTeam[],
+  options: ValidateBoundedOptions,
   concurrency: number,
 ): Promise<ValidateJsonResult[]> {
+  const { provider, botPort = 8000, healthGraceMs = 30_000 } = options;
   const { runWithConcurrency } = await import('./scheduler.js');
-  const jobs = teams.map((team) => async (): Promise<ValidateJsonResult> => {
+
+  const jobs = prepared.map((p) => async (): Promise<ValidateJsonResult> => {
     const start = Date.now();
-    const [result]: ValidateTeamResult[] = await validateAll([team], options);
-    return {
-      team: team.name,
-      repo_url: team.repoUrl,
-      commit: null, // validate.ts's `latest` checkout path doesn't pin a commit; use `run-tournament --lock` output for the frozen commit.
-      ok: result.ok,
-      stage: inferStage(result.detail),
-      detail: result.detail,
-      ms: Date.now() - start,
-    };
+    const base = { team: p.team.name, repo_url: p.team.repoUrl, commit: p.commit ?? null };
+
+    if (p.forfeit) {
+      return { ...base, ok: false, stage: stageForForfeit(p.forfeit), detail: p.detail ?? p.forfeit, ms: Date.now() - start };
+    }
+
+    const result = await validateTeam(p.team, {
+      provider,
+      resolveRepoDir: () => p.repoDir!,
+      botPort,
+      healthGraceMs,
+    });
+    return { ...base, ok: result.ok, stage: 'smoke', detail: result.detail, ms: Date.now() - start };
   });
   return runWithConcurrency(jobs, Math.max(1, concurrency));
 }
