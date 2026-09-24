@@ -107,8 +107,25 @@ Each run: refreshes the roster (worker + backup, diffed -- see below),
 `validate --json`s every team (checkout -> build -> health -> smoke), posts
 each result to `/api/results`, prints a pass/fail table, and posts a summary
 to Discord. **Announce failures to the room immediately** -- this is exactly
-what it's for. Exits non-zero if anything failed, so you can wire it into a
-terminal bell / notification if you want.
+what it's for. Exits non-zero if anything failed (that's by design -- the
+run still finishes, posts every result, and updates any lock file even when
+some teams fail; only a crash with no output at all is treated as fatal).
+
+**Dry-running any of `c4-tminus` / `c4-freeze` against a synthetic roster**
+(e.g. rehearsing the whole pipeline before real submissions exist): both
+scripts forward extra args to `c4-roster`, so you can pin the roster instead
+of hitting the live Worker/backup:
+
+```
+c4-tminus "T-TEST" --source csv /path/to/test-roster.csv
+c4-freeze --source csv /path/to/test-roster.csv
+```
+
+This still posts real results to the real Worker and Discord (label the run
+something like `"[DRY RUN] ..."` so it's obvious in the channel), so keep
+the test roster small and clean up any Docker images it builds afterward.
+`c4-tournament` doesn't take a `--source` -- it just runs against whatever
+`c4-freeze` last wrote to `locks/latest.json`.
 
 ## 5. Roster fallback paths
 
@@ -198,6 +215,25 @@ journalctl -u c4-watch -f -o cat | jq .
 # flip it off
 sudo sed -i 's/^C4_WATCH_ENABLED=.*/C4_WATCH_ENABLED=0/' /etc/c4/env
 sudo systemctl restart c4-watch.service
+```
+
+As the `c4` user (not root), the same flip-on is: `sudo systemctl restart
+c4-watch.service` is passwordless for `c4` (see the sudoers rule installed by
+cloud-init.yaml); editing `/etc/c4/env` itself still needs root.
+
+**Dry-running arena-watch** before flipping it on for real: set
+`C4_WATCH_ROSTER_FILE=/path/to/roster.json` (test-only env var, never set in
+production -- `apps/arena-watch/src/config.ts` logs a loud warning if it's
+set) to make it read the roster from a local file instead of the live
+Worker/backup. It still posts real results/Discord using whatever
+`WORKER_URL`/`RESULTS_TOKEN`/`DISCORD_WEBHOOK_URL` are in `/etc/c4/env`, so
+point the test roster at throwaway `file://` repos, run it in the foreground
+(not via systemd) for a couple of ticks, and `Ctrl-C`/`SIGTERM` it when done:
+
+```
+env C4_WATCH_ENABLED=1 C4_WATCH_ROSTER_FILE=/home/c4/test-roster.json \
+    C4_WATCH_STATE_FILE=/home/c4/test-watch-state.json \
+    node /opt/c4/c4/apps/arena-watch/dist/index.js
 ```
 
 It polls the roster every ~60s (`C4_WATCH_POLL_INTERVAL_MS`), does a

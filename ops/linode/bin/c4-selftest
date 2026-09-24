@@ -15,6 +15,11 @@ set -euo pipefail
 C4_DIR=${C4_DIR:-/opt/c4/c4}
 cd "$C4_DIR"
 
+# packages/samples' conformance runner needs the templates repo -- the arena
+# box always has it at /opt/c4/c4-hackathon (see ops/linode/README.md); local
+# dev machines fall back to a sibling checkout automatically if this is unset.
+export C4_HACKATHON_DIR=${C4_HACKATHON_DIR:-/opt/c4/c4-hackathon}
+
 declare -a NAMES=()
 declare -a CMDS=()
 

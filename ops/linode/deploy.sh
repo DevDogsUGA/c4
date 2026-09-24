@@ -31,7 +31,13 @@ if [ ! -d "$C4_DIR/.git" ]; then
 fi
 
 echo "-- pulling $C4_DIR (private) --"
-git -C "$C4_DIR" pull --ff-only
+# c4/DevDogsUGA is private and, per this repo's design, never gets a stored
+# git credential (see the clone step in cloud-init.yaml) -- so a plain `git
+# pull` here has nothing to authenticate with. Pass C4_REPO_TOKEN through the
+# same one-shot credential helper the initial clone uses.
+: "${C4_REPO_TOKEN:?C4_REPO_TOKEN must be set in /etc/c4/env for deploy.sh to pull the private repo}"
+git -C "$C4_DIR" -c credential.helper="!f() { echo username=x-access-token; echo password=$C4_REPO_TOKEN; }; f" \
+  pull --ff-only
 
 if [ -d "$HACKATHON_DIR/.git" ]; then
   echo "-- pulling $HACKATHON_DIR (public) --"
