@@ -10,6 +10,9 @@ import { z } from 'zod';
 export const BOARD_WIDTH = 8;
 export const BOARD_HEIGHT = 8;
 
+/** Per-player, per-game chess-clock budget in ms (the event default). */
+export const THINK_BUDGET_MS = 5_000;
+
 // ---------------------------------------------------------------------------
 // Shared primitives
 // ---------------------------------------------------------------------------
@@ -81,6 +84,10 @@ export const TeamRefSchema = z.object({
   // testing hand the arena plain filesystem paths, which are equally valid
   // repo references for `git clone`.
   repo_url: z.string().min(1),
+  /** Member display names from the submission form, for presenter intros. */
+  members: z.array(z.string().min(1)).optional(),
+  /** Template language detected from the frozen checkout (e.g. "python"). */
+  language: z.string().min(1).optional(),
 });
 export type TeamRef = z.infer<typeof TeamRefSchema>;
 
@@ -163,21 +170,53 @@ export const GameRecordSchema = z.object({
 });
 export type GameRecord = z.infer<typeof GameRecordSchema>;
 
-/** Overall result of a best-of-3 (or sudden-death-extended) match. */
-export const MatchResultSchema = z.object({
-  /** Which team slot won the match. */
-  winner_team: TeamSlotSchema,
-  /** Games won, indexed by team slot: [team0Wins, team1Wins]. */
-  games_won: z.tuple([z.number().int().nonnegative(), z.number().int().nonnegative()]),
-  reason: z.enum(['played', 'forfeit']),
-  /** Present only when `reason` is 'forfeit' (e.g. missed the 30s health-check grace at match start). */
-  forfeit_detail: z
-    .object({
-      team: TeamSlotSchema,
-      reason: z.literal('startup_timeout'),
-    })
-    .optional(),
+/** Why a whole match was forfeited before (or instead of) any game. */
+export const MatchForfeitReasonSchema = z.enum([
+  /** Missed the off-clock health-check grace at match start. */
+  'startup_timeout',
+  /** The frozen commit's Docker image failed to build. */
+  'build_failed',
+  /** The repo or frozen commit couldn't be checked out. */
+  'checkout_failed',
+]);
+export type MatchForfeitReason = z.infer<typeof MatchForfeitReasonSchema>;
+
+export const MatchForfeitSchema = z.object({
+  team: TeamSlotSchema,
+  reason: MatchForfeitReasonSchema,
 });
+export type MatchForfeit = z.infer<typeof MatchForfeitSchema>;
+
+/** Overall result of a best-of-3 (or sudden-death-extended) match. */
+export const MatchResultSchema = z
+  .object({
+    /**
+     * Which team slot won the match. null only for a double forfeit (both
+     * teams forfeited): a loss for both in round-robin; in the bracket
+     * neither advances and the next-round opponent gets a bye.
+     */
+    winner_team: TeamSlotSchema.nullable(),
+    /** Games won, indexed by team slot: [team0Wins, team1Wins]. */
+    games_won: z.tuple([z.number().int().nonnegative(), z.number().int().nonnegative()]),
+    reason: z.enum(['played', 'forfeit']),
+    /** Present iff `reason` is 'forfeit': one entry, or two for a double forfeit. */
+    forfeits: z.array(MatchForfeitSchema).min(1).max(2).optional(),
+  })
+  .superRefine((r, ctx) => {
+    const n = r.forfeits?.length ?? 0;
+    if ((r.reason === 'forfeit') !== n > 0) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'forfeits must be present iff reason is "forfeit"' });
+    }
+    if (n === 2 && r.forfeits![0].team === r.forfeits![1].team) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'a double forfeit must name both team slots' });
+    }
+    if ((r.winner_team === null) !== (n === 2)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'winner_team is null iff both teams forfeited' });
+    }
+    if (n === 1 && r.winner_team === r.forfeits![0].team) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'the forfeiting team cannot win the match' });
+    }
+  });
 export type MatchResult = z.infer<typeof MatchResultSchema>;
 
 export const MatchRecordSchema = z.object({
@@ -226,3 +265,22 @@ export const TournamentSummarySchema = z.object({
   generated_at: z.string().datetime(),
 });
 export type TournamentSummary = z.infer<typeof TournamentSummarySchema>;
+
+// ---------------------------------------------------------------------------
+// Single-file export (engine -> R2 -> presenter)
+// ---------------------------------------------------------------------------
+
+/**
+ * The whole tournament in one JSON file: what the engine uploads to R2 and
+ * what the presenter loads by URL or file picker. `provenance` is free-form
+ * run metadata (template commit, engine settings, sample list) and is never
+ * read by the presenter.
+ */
+export const TournamentBundleSchema = z.object({
+  format: z.literal('c4-tournament-bundle'),
+  version: z.literal(1),
+  summary: TournamentSummarySchema,
+  matches: z.array(MatchRecordSchema),
+  provenance: z.record(z.unknown()).optional(),
+});
+export type TournamentBundle = z.infer<typeof TournamentBundleSchema>;
