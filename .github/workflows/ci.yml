@@ -17,16 +17,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v2
-        with:
-          # action-setup auto-detects pnpm version from packageManager field if present,
-          # otherwise from the root package.json engines.pnpm constraint. Falls back to
-          # latest if neither is specified.
+      # Version comes from the root package.json packageManager field.
+      - uses: pnpm/action-setup@v4
 
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: pnpm
 
       # Note: pnpm-lock.yaml is gitignored so we cannot use --frozen-lockfile.
       # This workflow will always install against the latest resolutions allowed by package.json.
