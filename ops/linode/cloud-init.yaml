@@ -32,6 +32,7 @@ packages:
   - gnupg
   - git
   - jq
+  - libatomic1 # workerd (registry's local Worker tests) links against it
   - apt-transport-https
   - software-properties-common
 
