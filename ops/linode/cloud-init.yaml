@@ -102,6 +102,37 @@ write_files:
       APT::Periodic::Update-Package-Lists "0";
       APT::Periodic::Unattended-Upgrade "0";
 
+  # --- Keys-only SSH. Bots can reach the host's bridge IP, so no password
+  # login may exist for them to guess at.
+  - path: /etc/ssh/sshd_config.d/10-c4.conf
+    permissions: '0644'
+    content: |
+      PasswordAuthentication no
+      KbdInteractiveAuthentication no
+      PermitRootLogin prohibit-password
+
+  # --- Bots may not open connections to the host itself. Per-container
+  # networks are Internal (no internet, no cross-team routes), but the host
+  # still owns an IP on each bridge. Drop NEW connections arriving from any
+  # user-defined bridge (br-*); replies to the engine's own requests are
+  # ESTABLISHED and still pass. docker0 is left alone so image builds work.
+  - path: /etc/systemd/system/c4-hostguard.service
+    permissions: '0644'
+    content: |
+      [Unit]
+      Description=C4: block bot containers from connecting to the host
+      After=docker.service
+      Requires=docker.service
+
+      [Service]
+      Type=oneshot
+      RemainAfterExit=yes
+      ExecStart=/bin/sh -c 'iptables -C INPUT -i br-+ -m conntrack --ctstate NEW -j DROP 2>/dev/null || iptables -I INPUT 1 -i br-+ -m conntrack --ctstate NEW -j DROP'
+      ExecStart=/bin/sh -c 'ip6tables -C INPUT -i br-+ -m conntrack --ctstate NEW -j DROP 2>/dev/null || ip6tables -I INPUT 1 -i br-+ -m conntrack --ctstate NEW -j DROP'
+
+      [Install]
+      WantedBy=multi-user.target
+
   # --- Let c4 restart/inspect only its own service, nothing else. Needed so
   # deploy.sh (which runs as c4, the hotfix path) can restart c4-watch
   # without full sudo.
@@ -155,12 +186,15 @@ runcmd:
   - apt-get update -y
   - apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
   - systemctl enable --now docker
+  - systemctl daemon-reload
+  - systemctl enable --now c4-hostguard.service
+  - systemctl reload ssh || systemctl reload sshd || true
 
   # --- Node 22 from NodeSource, then pnpm via corepack ---
   - curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
   - apt-get install -y nodejs
   - corepack enable
-  - corepack prepare pnpm@latest --activate
+  - corepack prepare pnpm@12.4.2 --activate
 
   # --- sysctl / docker daemon config takes effect ---
   - sysctl --system
