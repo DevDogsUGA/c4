@@ -11,7 +11,7 @@
 // after 3 games) also correctly continues into sudden death rather than
 // being scored as decided on a 1-0 game-win count.
 
-import type { GameRecord, MatchRecord, TeamRef, TeamSlot } from '@acm-uga/c4-contract';
+import type { GameRecord, MatchForfeit, MatchRecord, TeamRef, TeamSlot } from '@acm-uga/c4-contract';
 import { gameWinningTeamSlot, playGame, type PlayerTransports } from './game-runner.js';
 import type { Rng } from './rng.js';
 import { coinFlipSlot } from './rng.js';
@@ -31,7 +31,7 @@ export interface MatchConfig {
   phase: 'roundrobin' | 'bracket';
   round?: string;
   teams: [TeamRef, TeamRef];
-  /** Per-player, per-game think budget in ms (10_000 in production; overridable in tests). */
+  /** Per-player, per-game think budget in ms (THINK_BUDGET_MS, 5_000ms, in production; overridable in tests). */
   thinkBudgetMs: number;
   rng: Rng;
 }
@@ -95,12 +95,20 @@ export async function playMatch(transports: MatchTransports, config: MatchConfig
 }
 
 /**
- * Builds the match record for a match forfeited entirely at startup (a bot
- * did not pass its /health check within the 30s off-clock grace). No games
- * are played. See DESIGN.md: "Not healthy within 30s grace at match start:
- * Forfeit the match".
+ * Builds the match record for a match forfeited entirely before any game
+ * was played — a broken submission (checkout/build/startup failure) per
+ * EVENT_PLAN.md's match-level forfeit reasons. No games are played.
+ *
+ * `forfeits` has one entry when a single team is broken (the other team
+ * wins the match), or two entries — naming both team slots — for a double
+ * forfeit, in which case `winner_team` is null: a loss for both teams (see
+ * round-robin.ts standings and bracket handling in tournament-runner.ts).
  */
-export function startupForfeitMatch(config: MatchConfig, forfeitedTeam: TeamSlot): MatchRecord {
+export function forfeitMatch(
+  config: MatchConfig,
+  forfeits: [MatchForfeit] | [MatchForfeit, MatchForfeit],
+): MatchRecord {
+  const winnerTeam: TeamSlot | null = forfeits.length === 2 ? null : otherSlot(forfeits[0].team);
   return {
     match_id: config.matchId,
     phase: config.phase,
@@ -108,10 +116,20 @@ export function startupForfeitMatch(config: MatchConfig, forfeitedTeam: TeamSlot
     teams: config.teams,
     games: [],
     result: {
-      winner_team: otherSlot(forfeitedTeam),
+      winner_team: winnerTeam,
       games_won: [0, 0],
       reason: 'forfeit',
-      forfeit_detail: { team: forfeitedTeam, reason: 'startup_timeout' },
+      forfeits,
     },
   };
+}
+
+/**
+ * Convenience wrapper for the single most common forfeit case (a bot did
+ * not pass its /health check within the 30s off-clock grace). See
+ * DESIGN.md: "Not healthy within 30s grace at match start: Forfeit the
+ * match".
+ */
+export function startupForfeitMatch(config: MatchConfig, forfeitedTeam: TeamSlot): MatchRecord {
+  return forfeitMatch(config, [{ team: forfeitedTeam, reason: 'startup_timeout' }]);
 }

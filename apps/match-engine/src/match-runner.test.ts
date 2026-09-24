@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { playMatch, startupForfeitMatch, type MatchConfig, type MatchTransports } from './match-runner.js';
+import { forfeitMatch, playMatch, startupForfeitMatch, type MatchConfig, type MatchTransports } from './match-runner.js';
 import { createSeededRng } from './rng.js';
 import { FakeBotTransport } from './testing/fake-bot-transport.js';
 
@@ -71,7 +71,26 @@ describe('startupForfeitMatch', () => {
       winner_team: 0,
       games_won: [0, 0],
       reason: 'forfeit',
-      forfeit_detail: { team: 1, reason: 'startup_timeout' },
+      forfeits: [{ team: 1, reason: 'startup_timeout' }],
+    });
+  });
+});
+
+describe('forfeitMatch', () => {
+  it('builds a double-forfeit match record with a null winner when both teams are broken', () => {
+    const record = forfeitMatch(baseConfig(1), [
+      { team: 0, reason: 'checkout_failed' },
+      { team: 1, reason: 'build_failed' },
+    ]);
+    expect(record.games).toEqual([]);
+    expect(record.result).toEqual({
+      winner_team: null,
+      games_won: [0, 0],
+      reason: 'forfeit',
+      forfeits: [
+        { team: 0, reason: 'checkout_failed' },
+        { team: 1, reason: 'build_failed' },
+      ],
     });
   });
 });

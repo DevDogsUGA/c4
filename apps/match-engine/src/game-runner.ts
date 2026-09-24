@@ -33,7 +33,7 @@ export interface GameConfig {
   firstPlayerTeam: TeamSlot;
   /** True if `firstPlayer` was an arena coin flip (game 1, sudden death); false if it deterministically alternated. */
   coinFlip: boolean;
-  /** Per-player think budget in ms for this game (10_000 in production). */
+  /** Per-player think budget in ms for this game (THINK_BUDGET_MS, 5_000ms, in production). */
   thinkBudgetMs: number;
 }
 

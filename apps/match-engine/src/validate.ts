@@ -4,6 +4,7 @@
 // touches the chess clock.
 
 import { emptyBoard } from '@acm-uga/c4-engine';
+import { THINK_BUDGET_MS } from '@acm-uga/c4-contract';
 import { StartupTimeoutError } from './docker/container-runtime.js';
 import type { BotProvider, StartedBot, Team } from './types.js';
 
@@ -52,7 +53,7 @@ export async function validateTeam(team: Team, options: ValidateOptions): Promis
       you: 1,
       board: emptyBoard(),
       moves: [],
-      game: { match_id: 'validate', game_number: 1, clock_remaining_ms: 10_000 },
+      game: { match_id: 'validate', game_number: 1, clock_remaining_ms: THINK_BUDGET_MS },
     });
     if (outcome.type !== 'ok') {
       return { team, ok: false, detail: `smoke /move failed: ${outcome.detail}` };

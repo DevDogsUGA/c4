@@ -2,7 +2,7 @@ import { readdir, mkdtemp, rm, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { MatchRecordSchema, TournamentSummarySchema } from '@acm-uga/c4-contract';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSeededRng } from './rng.js';
 import { runTournament } from './tournament-runner.js';
 import { FakeBotProvider } from './testing/fake-bot-provider.js';
@@ -64,16 +64,17 @@ describe('runTournament', () => {
     const files = await readdir(dir);
     expect(files).toContain('tournament-summary.json');
     expect(files).toContain('manifest.json');
-    expect(files.filter((f) => f.endsWith('.json'))).toHaveLength(6 + 3 + 2);
+    expect(files).toContain('tournament.json');
+    expect(files.filter((f) => f.endsWith('.json'))).toHaveLength(6 + 3 + 3); // + manifest + summary + bundle
 
     const manifest = JSON.parse(await readFile(path.join(dir, 'manifest.json'), 'utf8'));
     expect(manifest.summary).toBe('tournament-summary.json');
     expect([...manifest.matches].sort()).toEqual(
-      files.filter((f) => f !== 'tournament-summary.json' && f !== 'manifest.json').sort(),
+      files.filter((f) => !['tournament-summary.json', 'manifest.json', 'tournament.json'].includes(f)).sort(),
     );
 
     for (const file of files) {
-      if (file === 'manifest.json') continue;
+      if (file === 'manifest.json' || file === 'tournament.json') continue;
       const contents = JSON.parse(await readFile(path.join(dir, file), 'utf8'));
       if (file === 'tournament-summary.json') {
         expect(() => TournamentSummarySchema.parse(contents)).not.toThrow();
@@ -81,6 +82,10 @@ describe('runTournament', () => {
         expect(() => MatchRecordSchema.parse(contents)).not.toThrow();
       }
     }
+
+    const bundle = JSON.parse(await readFile(path.join(dir, 'tournament.json'), 'utf8'));
+    expect(bundle.format).toBe('c4-tournament-bundle');
+    expect(bundle.matches).toHaveLength(6 + 3);
   });
 
   it('resolves byes without starting any bots for them, when the field is smaller than the bracket', async () => {
@@ -109,5 +114,60 @@ describe('runTournament', () => {
 
     // A bye never starts a bot (no wasted container): total starts == 2 per *played* match only.
     expect(provider.startedRepoDirs).toHaveLength((rrMatches.length + bracketMatches.length) * 2);
+  });
+
+  it('forfeits every match for a preparedForfeits team without ever calling resolveRepoDir or starting its bot', async () => {
+    const teams = makeTeams(['T1', 'T2', 'T3', 'T4']);
+    const provider = new FakeBotProvider({ transports: transportsFor(teams) });
+    const resolveRepoDir = vi.fn((team: Team) => team.repoUrl);
+
+    const result = await runTournament({
+      teams,
+      outputDir: dir,
+      provider,
+      rng: createSeededRng(1),
+      resolveRepoDir,
+      preparedForfeits: new Map([['T1', 'build_failed']]),
+      minBracketSlots: 4,
+      concurrency: 2,
+    });
+
+    expect(resolveRepoDir).not.toHaveBeenCalledWith(expect.objectContaining({ name: 'T1' }));
+    expect(provider.startedRepoDirs).not.toContain('https://github.com/example/T1');
+
+    const t1Matches = result.matches.filter((m) => m.teams.some((t) => t.name === 'T1'));
+    expect(t1Matches.length).toBeGreaterThan(0);
+    for (const m of t1Matches) {
+      expect(m.result.reason).toBe('forfeit');
+      expect(m.result.forfeits?.some((f) => m.teams[f.team].name === 'T1' && f.reason === 'build_failed')).toBe(true);
+    }
+  });
+
+  it('propagates a double forfeit as a bye for the next bracket opponent, and no champion if it happens in the final', async () => {
+    const teams = makeTeams(['T1', 'T2']);
+    const provider = new FakeBotProvider({ transports: transportsFor(teams) });
+
+    const result = await runTournament({
+      teams,
+      outputDir: dir,
+      provider,
+      rng: createSeededRng(1),
+      resolveRepoDir: (team) => team.repoUrl,
+      preparedForfeits: new Map([
+        ['T1', 'checkout_failed'],
+        ['T2', 'checkout_failed'],
+      ]),
+      minBracketSlots: 2,
+      concurrency: 2,
+    });
+
+    const final = result.summary.bracket.find((b) => b.round === 'Final');
+    expect(final).toBeDefined();
+    expect(final!.winner).toBeNull();
+    expect(final!.bye).toBe(false);
+
+    const finalMatch = result.matches.find((m) => m.match_id === final!.match_id);
+    expect(finalMatch?.result.winner_team).toBeNull();
+    expect(finalMatch?.result.forfeits).toHaveLength(2);
   });
 });

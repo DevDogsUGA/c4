@@ -46,11 +46,16 @@ describe('runWithConcurrency', () => {
 });
 
 describe('matchConcurrency', () => {
-  it('uses 2 cores per match, capped at 4 parallel matches', () => {
-    expect(matchConcurrency(8)).toBe(4);
-    expect(matchConcurrency(16)).toBe(4); // capped
-    expect(matchConcurrency(4)).toBe(2);
-    expect(matchConcurrency(2)).toBe(1);
+  it('uses 2 cores per match with 2 reserved for the engine/Docker, and no cap on parallel matches', () => {
+    expect(matchConcurrency(8)).toBe(3); // (8-2)/2 = 3
+    expect(matchConcurrency(64)).toBe(31); // (64-2)/2 = 31, no 4-match cap
+    expect(matchConcurrency(4)).toBe(1); // (4-2)/2 = 1
+    expect(matchConcurrency(2)).toBe(1); // never 0 even with nothing left over
     expect(matchConcurrency(1)).toBe(1); // never 0
+  });
+
+  it('honors a custom reserved-cores count', () => {
+    expect(matchConcurrency(10, 4)).toBe(3); // (10-4)/2 = 3
+    expect(matchConcurrency(10, 0)).toBe(5);
   });
 });
