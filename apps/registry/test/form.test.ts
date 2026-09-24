@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { SELF } from 'cloudflare:test';
+import { SELF, env } from 'cloudflare:test';
 import { makeFormPayload, signedFormRequest, TEST_ENV } from './helpers';
 
 async function roster(env: 'production' | 'staging' = 'production') {
@@ -63,6 +63,23 @@ describe('POST /api/form', () => {
     const matches = teams.filter((t) => t.repo_url === first.repo_url);
     expect(matches).toHaveLength(1);
     expect(matches[0].team_name).toBe('Renamed Team');
+  });
+
+  it('ignores an identical re-send (periodic resync): no update, no log line', async () => {
+    const payload = makeFormPayload({ response_id: 'resync-noop-id', team_name: 'Steady Team' });
+    const r1 = await SELF.fetch(await signedFormRequest(payload));
+    expect(r1.status).toBe(201);
+    const logCount = async () =>
+      (await env.DB.prepare('SELECT COUNT(*) AS n FROM form_log WHERE response_id = ?').bind('resync-noop-id').first<{ n: number }>())!.n;
+    const before = await logCount();
+    const before_row = await env.DB.prepare('SELECT updated_at FROM teams WHERE response_id = ?').bind('resync-noop-id').first<{ updated_at: string }>();
+
+    const r2 = await SELF.fetch(await signedFormRequest(payload));
+    expect(r2.status).toBe(200);
+    expect(((await r2.json()) as { unchanged?: boolean }).unchanged).toBe(true);
+    expect(await logCount()).toBe(before);
+    const after_row = await env.DB.prepare('SELECT updated_at FROM teams WHERE response_id = ?').bind('resync-noop-id').first<{ updated_at: string }>();
+    expect(after_row!.updated_at).toBe(before_row!.updated_at);
   });
 
   it('two different response ids with empty emails produce two separate teams', async () => {

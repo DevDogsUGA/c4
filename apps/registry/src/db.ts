@@ -58,7 +58,7 @@ export async function deleteTeam(db: D1Database, id: number): Promise<void> {
 }
 
 export type UpsertOutcome =
-  | { ok: true; team: TeamRow; created: boolean }
+  | { ok: true; team: TeamRow; created: boolean; changed: boolean }
   | { ok: false; status: number; reason: string };
 
 /**
@@ -89,6 +89,14 @@ export async function upsertTeam(
   const membersJson = JSON.stringify(payload.members);
 
   if (existing) {
+    // The Apps Script re-sends every response on a timer; an identical
+    // re-send must be a no-op (no write, no Discord post, no log line).
+    const changed =
+      existing.team_name !== payload.team_name ||
+      existing.repo_url !== normalizedRepoUrl ||
+      existing.members_json !== membersJson ||
+      (existing.submitter_email ?? '') !== email;
+    if (!changed) return { ok: true, team: existing, created: false, changed: false };
     await db
       .prepare(
         `UPDATE teams SET submitter_email = ?, team_name = ?, repo_url = ?, members_json = ?, updated_at = ?
@@ -97,7 +105,7 @@ export async function upsertTeam(
       .bind(email, payload.team_name, normalizedRepoUrl, membersJson, now, existing.id)
       .run();
     const updated = await db.prepare('SELECT * FROM teams WHERE id = ?').bind(existing.id).first<TeamRow>();
-    return { ok: true, team: updated as TeamRow, created: false };
+    return { ok: true, team: updated as TeamRow, created: false, changed: true };
   }
 
   const count = await countTeams(db, env);
@@ -114,7 +122,7 @@ export async function upsertTeam(
     .run();
 
   const created = await getTeamByResponseId(db, responseId, env);
-  return { ok: true, team: created as TeamRow, created: true };
+  return { ok: true, team: created as TeamRow, created: true, changed: true };
 }
 
 export async function logFormSubmission(

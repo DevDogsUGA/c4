@@ -191,12 +191,32 @@ function setup() {
   var existing = ScriptApp.getProjectTriggers().some(function (t) {
     return t.getHandlerFunction() === 'onFormSubmit' && t.getTriggerSourceId() === form.getId();
   });
+  setupResyncTimer();
   if (existing) {
     Logger.log('onFormSubmit trigger already installed for form ' + form.getId());
     return;
   }
   ScriptApp.newTrigger('onFormSubmit').forForm(form).onFormSubmit().create();
   Logger.log('Installed onFormSubmit trigger for form ' + form.getId());
+}
+
+/**
+ * Idempotently install a 5-minute timer that re-sends every response
+ * (resyncAll). This is the backup path for dropped webhooks: UGA's
+ * Workspace forbids anonymous web apps, so the arena can't pull a roster
+ * from doGet; instead the script keeps pushing. The Worker ignores
+ * unchanged re-sends. Run once, after setup().
+ */
+function setupResyncTimer() {
+  var existing = ScriptApp.getProjectTriggers().some(function (t) {
+    return t.getHandlerFunction() === 'resyncAll';
+  });
+  if (existing) {
+    Logger.log('resyncAll timer already installed');
+    return;
+  }
+  ScriptApp.newTrigger('resyncAll').timeBased().everyMinutes(5).create();
+  Logger.log('Installed 5-minute resyncAll timer');
 }
 
 /**

@@ -161,6 +161,11 @@ app.post('/api/form', async (c) => {
     return c.json({ error: outcome.reason }, outcome.status as 403 | 409);
   }
 
+  // Periodic resyncs re-send unchanged responses; only log/notify real changes.
+  if (!outcome.changed) {
+    return c.json({ ok: true, unchanged: true, team: rowToRoster(outcome.team) }, 200);
+  }
+
   await logFormSubmission(
     c.env.DB,
     { ...payload, repo_url: normalized, env, outcome: 'accepted', reject_reason: null },
