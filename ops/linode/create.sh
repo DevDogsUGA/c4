@@ -6,7 +6,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 TYPE=${1:-g8-dedicated-128-64}
 REGION=${2:-us-southeast}
-KEY_FILE=${C4_SSH_PUBKEY:-$HOME/.ssh/id_rsa.pub}
+KEY_FILE=${C4_SSH_PUBKEY:-$HOME/.ssh/c4_arena_ed25519.pub}
 FIREWALL_LABEL=c4-arena-fw
 
 KEY=$(cat "$KEY_FILE")
