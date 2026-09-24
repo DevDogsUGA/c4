@@ -29,7 +29,7 @@ import { COLS, ROWS, type Board } from './reference.js';
 const execFileAsync = promisify(execFile);
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const SAMPLES_ROOT = path.resolve(HERE, '../../samples'); // packages/samples/samples
+const SAMPLES_ROOT = path.resolve(HERE, '../../../../samples'); // repo-root samples/
 
 interface LangSpec {
   lang: string;
