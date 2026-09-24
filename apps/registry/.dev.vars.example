@@ -23,6 +23,13 @@ GITHUB_TOKEN=ghp_dev_placeholder
 # Discord webhook URL for registration + results-change notifications.
 DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/000000000000000000/dev-placeholder
 
-# Optional: comma-separated allowlist checked against
-# Cf-Access-Authenticated-User-Email for /admin.
+# Optional: comma-separated allowlist checked against the verified Access
+# JWT email claim for /admin.
 ADMIN_EMAILS=
+
+# Only needed to exercise /admin locally: your Zero Trust team domain and
+# the Access application's Audience (AUD) tag (Zero Trust dashboard ->
+# Access -> Applications -> the app -> Overview -> "Application Audience
+# (AUD) Tag"). Without these, /admin routes 503 "admin not configured".
+# ACCESS_TEAM_DOMAIN=devdogs.cloudflareaccess.com
+# ACCESS_AUD=changeme

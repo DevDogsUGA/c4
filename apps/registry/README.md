@@ -16,7 +16,7 @@ built against, and the shared-interfaces contract it implements exactly.
 | POST | `/api/form` | `X-C4-Signature: hex(HMAC-SHA256(FORM_HMAC_SECRET, rawBody))` | Apps Script form intake |
 | GET | `/api/roster` | `Authorization: Bearer $ROSTER_TOKEN` | `?env=staging` returns the staging-only roster instead of production (default) |
 | POST | `/api/results` | `Authorization: Bearer $RESULTS_TOKEN` | arena machine result reporting |
-| GET | `/admin` | Cloudflare Access + `Cf-Access-Authenticated-User-Email` (+ optional `ADMIN_EMAILS` allowlist) | full detail, arena history, form log, CSV export |
+| GET | `/admin` | Cloudflare Access, verified JWT (+ optional `ADMIN_EMAILS` allowlist) | full detail, arena history, form log, CSV export |
 | POST | `/admin/competition-started` | same as `/admin` | toggles the `settings.competition_started` flag; same-origin only |
 | POST | `/admin/staging/:id/delete` | same as `/admin` | purge a staging registration |
 | GET | `/admin/roster.csv` | same as `/admin` | CSV export of the (production) roster |
@@ -63,19 +63,56 @@ property). Staging teams are:
 - Secrets (`wrangler secret put <NAME>`, never committed — see
   `.dev.vars.example` for local dev): `FORM_HMAC_SECRET`, `ROSTER_TOKEN`,
   `RESULTS_TOKEN`, `GITHUB_TOKEN`, `DISCORD_WEBHOOK_URL`.
-- Var `ADMIN_EMAILS`: optional comma-separated allowlist checked against
-  `Cf-Access-Authenticated-User-Email`, on top of Cloudflare Access itself.
-- Var `MODE`: see Deployment below.
+- Var `ADMIN_EMAILS`: optional comma-separated allowlist checked against the
+  *verified* Access JWT email claim, on top of Cloudflare Access itself.
+- Var `MODE`: see Deployment below. Unset behaves like `public` (admin
+  routes are never served) — a safe default, though the top-level
+  `wrangler.toml` config for this project's actual deployment
+  (`c4.devdogsuga.org`) sets it to `both`.
+- Vars `ACCESS_TEAM_DOMAIN` and `ACCESS_AUD`: **required wherever admin
+  routes are served** (`MODE=admin` or `MODE=both`) — both default to `""`
+  in `wrangler.toml`, so admin routes fail closed with 503 until they're
+  set at deploy time. Admin routes verify the
+  `Cf-Access-Jwt-Assertion` JWT (or `CF_Authorization` cookie) as a real
+  RS256-signed Cloudflare Access token — checking its signature against
+  Access's public keys, `aud`, `iss`, and `exp`/`nbf` — and take the caller's
+  email only from that verified token, never from the plain
+  `Cf-Access-Authenticated-User-Email` header (which is otherwise forgeable
+  by anyone who can reach the Worker directly). If either var is missing,
+  admin routes fail closed with `503 admin not configured` rather than
+  trusting any header. To find the values:
+  - `ACCESS_TEAM_DOMAIN`: your Zero Trust team domain, e.g.
+    `devdogs.cloudflareaccess.com` — Zero Trust dashboard → Settings →
+    Custom Pages shows it, or read it off the URL you're redirected to when
+    logging in to any Access application for this team.
+  - `ACCESS_AUD`: Zero Trust dashboard → Access → Applications → (the
+    `/admin*` application) → Overview → **Application Audience (AUD) Tag**.
+
+  Set both at deploy time (they're plain vars, not secrets, but
+  deployment-specific so aren't committed):
+
+  ```sh
+  wrangler deploy --env admin \
+    --var ACCESS_TEAM_DOMAIN:devdogs.cloudflareaccess.com \
+    --var ACCESS_AUD:<the-aud-tag>
+  ```
+
+  or uncomment and fill in `[env.admin.vars]` (or the top-level `[vars]`
+  block, for the `MODE=both` topology) in `wrangler.toml` once the values
+  are known.
 
 ## Deployment
 
-Two supported topologies, same code, controlled by the `MODE` var:
+The chosen topology is a single Worker on the custom domain
+**`c4.devdogsuga.org`**, with Cloudflare Access protecting just the
+`/admin` path (Access application path: `c4.devdogsuga.org/admin*`) —
+everything else stays publicly reachable from the same Worker. This is the
+top-level config in `wrangler.toml`: `[[routes]]` already points at
+`c4.devdogsuga.org`, and `MODE = "both"`. A two-Worker/workers.dev
+alternative also exists (`[env.admin]`) if Access-per-path isn't available;
+both are documented below.
 
-### 1. Single Worker on a custom domain (`MODE` unset)
-
-Cloudflare Access can protect just the `/admin` path on a custom domain, so
-one Worker serves everything. This is the top-level config in
-`wrangler.toml`:
+### 1. Single Worker on the custom domain (`MODE=both`, top-level config)
 
 ```sh
 wrangler d1 migrations apply c4-registry --remote   # once, and after schema changes
@@ -84,12 +121,15 @@ wrangler secret put ROSTER_TOKEN
 wrangler secret put RESULTS_TOKEN
 wrangler secret put GITHUB_TOKEN
 wrangler secret put DISCORD_WEBHOOK_URL
-wrangler deploy
+wrangler deploy \
+  --var ACCESS_TEAM_DOMAIN:devdogs.cloudflareaccess.com \
+  --var ACCESS_AUD:<the-aud-tag>
 ```
 
-Once `REGISTRY_HOST` is chosen, uncomment the `[[routes]]` block in
-`wrangler.toml` and put a Cloudflare Access application on
-`REGISTRY_HOST/admin*`.
+(Or fill `ACCESS_TEAM_DOMAIN` / `ACCESS_AUD` into the top-level `[vars]`
+block in `wrangler.toml` directly and just run `wrangler deploy`.) Put a
+Cloudflare Access application on `c4.devdogsuga.org/admin*` — that
+application's Overview page has the AUD tag for `ACCESS_AUD` above.
 
 ### 2. Two Workers on workers.dev (`MODE=public` / `MODE=admin`)
 
@@ -106,7 +146,9 @@ wrangler secret put GITHUB_TOKEN
 wrangler secret put DISCORD_WEBHOOK_URL
 
 # Admin worker: c4-registry-admin.<subdomain>.workers.dev
-wrangler deploy --env admin
+wrangler deploy --env admin \
+  --var ACCESS_TEAM_DOMAIN:devdogs.cloudflareaccess.com \
+  --var ACCESS_AUD:<the-aud-tag>
 wrangler secret put ROSTER_TOKEN --env admin
 wrangler secret put RESULTS_TOKEN --env admin   # only needed if /admin ever reads results directly; harmless either way
 wrangler secret put GITHUB_TOKEN --env admin

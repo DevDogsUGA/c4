@@ -1,8 +1,15 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { SELF, fetchMock } from 'cloudflare:test';
 import { refreshAllRepoStatuses } from '../src/cron';
 import { getRepoStatus } from '../src/db';
 import { makeFormPayload, signedFormRequest, TEST_ENV } from './helpers';
+import { accessHeaders, mockAccessCerts, signAccessJwt } from './access-jwt';
+
+// Only the "competition started" test below needs an admin JWT; harmless
+// (and simpler) to mock the certs endpoint for the whole file.
+beforeEach(async () => {
+  await mockAccessCerts();
+});
 
 describe('refreshAllRepoStatuses (cron)', () => {
   it('marks a reachable repo with commits as reachable and records the latest commit', async () => {
@@ -69,13 +76,11 @@ describe('refreshAllRepoStatuses (cron)', () => {
   it('fetches the latest Actions run once the competition has started', async () => {
     const payload = makeFormPayload({ repo_url: 'https://github.com/octo/ci-repo' });
     await SELF.fetch(await signedFormRequest(payload));
+    const token = await signAccessJwt({ email: 'organizer@uga.edu' });
     await SELF.fetch('https://registry.test/admin/competition-started', {
       method: 'POST',
       redirect: 'manual',
-      headers: {
-        'Cf-Access-Authenticated-User-Email': 'organizer@uga.edu',
-        'content-type': 'application/x-www-form-urlencoded',
-      },
+      headers: { ...accessHeaders(token), 'content-type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({ started: 'true' }),
     });
 

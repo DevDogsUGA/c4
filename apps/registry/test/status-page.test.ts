@@ -1,7 +1,12 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { SELF } from 'cloudflare:test';
 import { upsertRepoStatus } from '../src/db';
 import { makeFormPayload, signedFormRequest, TEST_ENV } from './helpers';
+import { accessHeaders, mockAccessCerts, signAccessJwt } from './access-jwt';
+
+beforeEach(async () => {
+  await mockAccessCerts();
+});
 
 function resultsRequest(body: Record<string, unknown>) {
   return new Request('https://registry.test/api/results', {
@@ -56,13 +61,11 @@ describe('GET / (public status page)', () => {
       }),
     );
 
+    const token = await signAccessJwt({ email: 'organizer@uga.edu' });
     await SELF.fetch('https://registry.test/admin/competition-started', {
       method: 'POST',
       redirect: 'manual',
-      headers: {
-        'Cf-Access-Authenticated-User-Email': 'organizer@uga.edu',
-        'content-type': 'application/x-www-form-urlencoded',
-      },
+      headers: { ...accessHeaders(token), 'content-type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({ started: 'true' }),
     });
 
@@ -74,7 +77,7 @@ describe('GET / (public status page)', () => {
 
     // But the admin page (with proper auth) does show the arena result detail.
     const adminRes = await SELF.fetch('https://registry.test/admin', {
-      headers: { 'Cf-Access-Authenticated-User-Email': 'organizer@uga.edu' },
+      headers: accessHeaders(token),
     });
     const adminHtml = await adminRes.text();
     expect(adminHtml).toContain(secretDetail);

@@ -24,6 +24,13 @@ export default defineWorkersConfig(async () => {
               GITHUB_TOKEN: 'test-github-token',
               DISCORD_WEBHOOK_URL: 'https://discord.test/webhook',
               ADMIN_EMAILS: '',
+              // Default test topology serves every route from one Worker
+              // (mirrors the single-Worker/custom-domain deployment);
+              // test/mode.test.ts overrides MODE per test to cover the
+              // others. See test/access-jwt.ts for the matching keypair.
+              MODE: 'both',
+              ACCESS_TEAM_DOMAIN: 'access.test',
+              ACCESS_AUD: 'test-audience-tag',
             },
           },
         },
