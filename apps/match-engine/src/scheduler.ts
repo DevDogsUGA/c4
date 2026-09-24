@@ -46,12 +46,15 @@ export async function runWithConcurrency<T>(
 }
 
 /**
- * Sizes match concurrency to the host, per DESIGN.md: 2 cores per match, up
- * to 4 matches in parallel. `availableCpus` defaults to the process's core
- * count.
+ * Sizes match concurrency to the host, per EVENT_PLAN.md: 2 vCPUs per match,
+ * with 2 cores reserved for the engine/Docker daemon (min 1 reserved), and
+ * no cap on the number of parallel matches — the arena is a dedicated
+ * 64-core box for the event, so the old DESIGN.md-era 4-match cap (sized
+ * for a laptop) is removed; this now scales to ~31 parallel matches on a
+ * 64-core host. `availableCpus` defaults to the process's core count.
  */
-export function matchConcurrency(availableCpus: number, maxParallelMatches = 4): number {
+export function matchConcurrency(availableCpus: number, reservedCpus = 2): number {
   const CORES_PER_MATCH = 2;
-  const byCpus = Math.max(1, Math.floor(availableCpus / CORES_PER_MATCH));
-  return Math.max(1, Math.min(maxParallelMatches, byCpus));
+  const usable = Math.max(0, availableCpus - Math.max(0, reservedCpus));
+  return Math.max(1, Math.floor(usable / CORES_PER_MATCH));
 }

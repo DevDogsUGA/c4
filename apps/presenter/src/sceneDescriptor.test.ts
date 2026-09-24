@@ -95,6 +95,21 @@ describe('describeScene', () => {
     const scene: Scene = { type: 'champion', team: team('Alpha') };
     expect(describeScene(scene)).toEqual({ type: 'champion', title: 'Champion', teams: ['Alpha'] });
   });
+
+  it('describes a no-champion scene (double-forfeit final) with no teams', () => {
+    const scene: Scene = { type: 'champion', team: null };
+    expect(describeScene(scene)).toEqual({ type: 'champion', title: 'No Champion — Double Forfeit', teams: [] });
+  });
+
+  it('describes a double-forfeit bracket scene distinctly, even without justAdvanced', () => {
+    const scene: Scene = {
+      type: 'bracket',
+      layout: { left: [], right: [], final: [] } as never,
+      revealedThrough: new Set(),
+      doubleForfeit: true,
+    };
+    expect(describeScene(scene)).toEqual({ type: 'bracket', title: 'Bracket — double forfeit', teams: [] });
+  });
 });
 
 describe('describeScenes', () => {

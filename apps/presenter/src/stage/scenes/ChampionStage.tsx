@@ -48,7 +48,14 @@ function ScatterField({ count }: { count: number }) {
   return <pixiGraphics ref={graphicsRef} draw={() => {}} />;
 }
 
-export function ChampionStage({ team }: { team: TeamRef }) {
+/**
+ * `team` is null for a double-forfeit final (contract: `winner_team: null`
+ * only when both finalists forfeited) -- there's no champion to crown, and
+ * the scene says so plainly instead of silently being skipped, per
+ * SHOW_PLAN.md's fail-state coverage: red hero "NO CHAMPION", no confetti,
+ * a steel subtext explaining why.
+ */
+export function ChampionStage({ team }: { team: TeamRef | null }) {
   const layout = layoutChampion();
   const timeline = useTimelineRefs();
 
@@ -59,14 +66,14 @@ export function ChampionStage({ team }: { team: TeamRef }) {
       track({ key: 'hero', prop: 'alpha', t0: 0, t1: HERO_ENTRANCE_MS, from: 0, to: 1 }),
     ]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [team.name]);
+  }, [team?.name]);
 
   return (
     <pixiContainer>
       <ScatterField count={layout.scatter.length} />
 
       <pixiText
-        text="CHAMPION"
+        text={team ? 'CHAMPION' : 'DOUBLE FORFEIT'}
         style={eyebrowTextStyle({ fontSize: 26 })}
         anchor={{ x: 0.5, y: 0 }}
         x={layout.eyebrow.x + layout.eyebrow.w / 2}
@@ -75,13 +82,23 @@ export function ChampionStage({ team }: { team: TeamRef }) {
 
       <pixiContainer ref={timeline.register('hero')} x={layout.hero.x + layout.hero.w / 2} y={layout.hero.y + layout.hero.h / 2}>
         <pixiText
-          text={team.name}
+          text={team ? team.name : 'NO CHAMPION'}
           style={heroTextStyle({ fontSize: 128, wordWrap: true, wordWrapWidth: layout.hero.w })}
           anchor={{ x: 0.5, y: 0.5 }}
         />
       </pixiContainer>
 
-      <ChampionConfetti seed={1} active />
+      {!team ? (
+        <pixiText
+          text="Neither finalist advances — no champion this tournament."
+          style={eyebrowTextStyle({ fontSize: 20, fill: TOKENS.steel, letterSpacing: 0 })}
+          anchor={{ x: 0.5, y: 0 }}
+          x={layout.hero.x + layout.hero.w / 2}
+          y={layout.hero.y + layout.hero.h + 24}
+        />
+      ) : null}
+
+      {team ? <ChampionConfetti seed={1} active /> : null}
     </pixiContainer>
   );
 }

@@ -6,10 +6,10 @@
 // point in the move list it occurred. Fully reconstructable from a
 // GameRecord alone -- no match-engine changes, no wall-clock dependency.
 
-import type { GameRecord } from '@acm-uga/c4-contract';
+import { THINK_BUDGET_MS, type GameRecord } from '@acm-uga/c4-contract';
 
-/** Starting think budget per player per game, per DESIGN.md. */
-export const STARTING_CLOCK_MS = 10_000;
+/** Starting think budget per player per game -- sourced from the contract's THINK_BUDGET_MS (the event default; 5s as of the 2026-09-24 contract revision). */
+export const STARTING_CLOCK_MS: number = THINK_BUDGET_MS;
 
 export interface ClockTick {
   /** 0-based index into the game's moves array this tick follows. */
@@ -80,10 +80,16 @@ export function seatForTeamSlot(
   return game.first_player === 1 ? 2 : 1;
 }
 
-/** Below this threshold a clock reads `bulldog` (per REDESIGN_PLAN.md §4). */
-export const CLOCK_WARN_MS = 2_000;
-/** Below this threshold a clock reads `bulldog` (critically low). */
-export const CLOCK_CRITICAL_MS = 500;
+/**
+ * Below this threshold a clock reads `chalk`/warn (per REDESIGN_PLAN.md §4).
+ * Scaled proportionally to STARTING_CLOCK_MS (20% of budget) so the warn
+ * band still makes sense now that the event's think budget dropped from
+ * 10s to 5s (THINK_BUDGET_MS) -- a fixed 2s threshold would eat 40% of a
+ * 5s clock instead of the originally-tuned 20%.
+ */
+export const CLOCK_WARN_MS = Math.round(STARTING_CLOCK_MS * 0.2);
+/** Below this threshold a clock reads `bulldog`/critical (5% of budget). */
+export const CLOCK_CRITICAL_MS = Math.round(STARTING_CLOCK_MS * 0.05);
 
 export type ClockUrgency = 'normal' | 'warn' | 'critical';
 

@@ -48,9 +48,15 @@ function buildStats(teams: readonly Team[], matches: readonly MatchRecord[]): Ma
     if (match.result.winner_team === 0) {
       aStats.matchWins++;
       bStats.matchLosses++;
-    } else {
+    } else if (match.result.winner_team === 1) {
       bStats.matchWins++;
       aStats.matchLosses++;
+    } else {
+      // Double forfeit: a match loss for both teams (and, per games_won
+      // above, 0 game wins for either — a double forfeit always carries
+      // games_won [0, 0] since no games are played).
+      aStats.matchLosses++;
+      bStats.matchLosses++;
     }
   }
   return stats;
@@ -73,6 +79,9 @@ const TEAM_SLOT_TO_COMPARISON: Record<TeamSlot, number> = { 0: -1, 1: 1 };
 function headToHead(a: Team, b: Team, matches: readonly MatchRecord[]): number {
   for (const match of matches) {
     if (match.phase !== 'roundrobin') continue;
+    // A double forfeit (winner_team null) is a loss for both teams — no
+    // head-to-head signal either way, so fall through to the next tiebreak.
+    if (match.result.winner_team === null) continue;
     const [t0, t1] = match.teams;
     if (t0.name === a.name && t1.name === b.name) {
       return TEAM_SLOT_TO_COMPARISON[match.result.winner_team];

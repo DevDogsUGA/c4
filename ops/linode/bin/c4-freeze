@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# Freeze the roster: refresh it, then run `c4 freeze` to record each team's
+# current commit into a timestamped lock file. Keeps history -- never
+# overwrites a previous freeze, so you can always see what was frozen when.
+#
+# Usage: c4-freeze
+# Output: /var/lib/c4/locks/lock-<UTC timestamp>.json
+#         /var/lib/c4/locks/latest.json -> symlink to the newest one
+set -euo pipefail
+
+HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
+ENV_FILE=/etc/c4/env
+if [ -r "$ENV_FILE" ]; then
+  set -a
+  # shellcheck disable=SC1090
+  . "$ENV_FILE"
+  set +a
+fi
+
+: "${C4_ENGINE_BIN:?C4_ENGINE_BIN must be set in /etc/c4/env}"
+
+STATE_DIR=${C4_STATE_DIR:-/var/lib/c4}
+LOCK_DIR="$STATE_DIR/locks"
+mkdir -p "$LOCK_DIR"
+ROSTER_JSON="$STATE_DIR/roster.json"
+
+echo "== c4-freeze: $(date -u +%FT%TZ) =="
+
+"$HERE/c4-roster"
+
+if [ ! -s "$ROSTER_JSON" ]; then
+  echo "FATAL: no roster available at $ROSTER_JSON" >&2
+  exit 1
+fi
+
+STAMP=$(date -u +%Y%m%dT%H%M%SZ)
+LOCK_FILE="$LOCK_DIR/lock-$STAMP.json"
+
+echo "-- freezing $(jq '.teams | length' "$ROSTER_JSON") teams to $LOCK_FILE --"
+node "$C4_ENGINE_BIN" freeze --roster "$ROSTER_JSON" --output "$LOCK_FILE"
+
+ln -sfn "$(basename "$LOCK_FILE")" "$LOCK_DIR/latest.json"
+
+echo "Frozen: $LOCK_FILE"
+echo "latest.json -> $(readlink "$LOCK_DIR/latest.json")"
+echo
+echo "Lock history:"
+ls -1 "$LOCK_DIR"/lock-*.json 2>/dev/null | sort

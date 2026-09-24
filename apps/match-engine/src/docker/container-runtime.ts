@@ -19,13 +19,41 @@
 // the bridge interface (verified empirically: host curl to the container
 // IP succeeds while the container's own egress gets ENETUNREACH).
 //
+// This is deliberately *stricter* than "one internal network per match":
+// every container gets its own private network, so a container never has
+// an L2-reachable neighbor at all — not even its own match opponent. There
+// is no shared bridge for a hostile bot to ARP-scan or otherwise probe.
+//
 // Portability constraint this creates: direct container-IP access from the
 // host only works where the arena shares a network namespace with the
 // Docker daemon's bridges — native Linux, or inside the same WSL2 distro
 // as dockerd. It does not work from a macOS/Windows host talking to Docker
 // Desktop's VM. DESIGN.md pins the showdown to a Linux machine or cloud
 // instance, so this is acceptable; revisit if that changes.
-
+//
+// Additional hostile-bot hardening (stress bots at the event), each with an
+// integration test in docker.integration.test.ts:
+//   - PidsLimit caps the container's process/thread count, so a fork bomb
+//     can't exhaust host PIDs.
+//   - MemorySwap === Memory disables swap for the container: an
+//     over-budget bot gets OOM-killed promptly instead of thrashing the
+//     host's swap device. An OOM-kill is a container exit, which surfaces
+//     to the transport as a `crashed` MoveOutcome (connection drop) and
+//     goes through the existing restart/crash_loop billing path in
+//     game-runner.ts — no separate "OOM" code path needed.
+//   - LogConfig bounds each container's `json-file` log driver output, so
+//     a bot that spams stdout/stderr can't fill the host disk via logs.
+//   - ReadonlyRootfs + a size-limited tmpfs at /tmp: verified empirically
+//     against all 9 starter templates (python, node, typescript, java, go,
+//     csharp, cpp, c, rust) — each builds, passes /health, and answers
+//     /move under `--read-only` with only /tmp mounted as tmpfs. None of
+//     them needed additional writable paths or runtime env vars (no
+//     DOTNET_*/JAVA_TOOL_OPTIONS/PYTHONDONTWRITEBYTECODE workarounds were
+//     necessary in practice), so this is unconditional for every bot.
+//   - Every object this module creates (container, network, image) carries
+//     the `c4.arena=1` / `c4.run=<runId>` labels so leftovers from a crashed
+//     engine process can be found and swept independently of this module's
+//     own (best-effort) cleanup.
 import { randomUUID } from 'node:crypto';
 import { readdir } from 'node:fs/promises';
 import Docker from 'dockerode';
@@ -53,6 +81,11 @@ export interface ContainerHandle {
    * becomes healthy again; it resolves with whatever time was spent up to
    * an internal cap, so the caller's own clock accounting forfeits the game
    * naturally instead of this module inventing a second timeout policy.
+   *
+   * Works uniformly whether the container is `exited` (OOM-killed, or a
+   * self-exit / exit 0) or still `running` — `docker restart` is defined
+   * for both states; Docker starts a stopped container rather than
+   * erroring on it.
    */
   restart(): Promise<number>;
   /** Stops and removes the container (and its private network). Best-effort; never throws. */
@@ -80,9 +113,18 @@ export interface ContainerRuntime {
 
 const ONE_CPU_NANOS = 1_000_000_000;
 const MEMORY_BYTES = 512 * 1024 * 1024;
+/** Caps forkbomb-style PID exhaustion; generous enough for any legitimate bot (interpreter + a handful of worker threads). */
+const PIDS_LIMIT = 256;
+/** Size-limited tmpfs for the one writable path bots get under ReadonlyRootfs. */
+const TMP_TMPFS_OPTS = 'rw,size=64m,mode=1777,nosuid,nodev';
 const HEALTH_POLL_INTERVAL_MS = 200;
 /** Cap on how long a single restart's health wait is allowed to run before giving up and reporting elapsed time; prevents one crash-looping bot from hanging the orchestrator forever. */
 const RESTART_HEALTH_CAP_MS = 30_000;
+
+/** Labels stamped on every container/network/image this module creates, so leftovers from a crashed engine process can be found (`docker ... --filter label=c4.arena=1`) independent of this module's own best-effort cleanup. */
+function arenaLabels(runId: string): Record<string, string> {
+  return { 'c4.arena': '1', 'c4.run': runId };
+}
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -107,9 +149,9 @@ async function waitForHealthy(baseUrl: string, timeoutMs: number): Promise<{ hea
   }
 }
 
-async function buildImage(docker: Docker, repoDir: string, tag: string): Promise<void> {
+async function buildImage(docker: Docker, repoDir: string, tag: string, labels: Record<string, string>): Promise<void> {
   const entries = await readdir(repoDir);
-  const stream = await docker.buildImage({ context: repoDir, src: entries }, { t: tag });
+  const stream = await docker.buildImage({ context: repoDir, src: entries }, { t: tag, labels });
   await new Promise<void>((resolve, reject) => {
     docker.modem.followProgress(
       stream,
@@ -127,9 +169,11 @@ async function buildImage(docker: Docker, repoDir: string, tag: string): Promise
 
 export class DockerContainerRuntime implements ContainerRuntime {
   private readonly docker: Docker;
+  private readonly runId: string;
 
-  constructor(docker: Docker = new Docker()) {
+  constructor(docker: Docker = new Docker(), runId: string = randomUUID()) {
     this.docker = docker;
+    this.runId = runId;
   }
 
   async start(options: StartOptions): Promise<ContainerHandle> {
@@ -138,23 +182,37 @@ export class DockerContainerRuntime implements ContainerRuntime {
     const imageTag = `c4-bot-${id}`;
     const networkName = `c4-net-${id}`;
     const portKey = `${port}/tcp`;
+    const labels = arenaLabels(this.runId);
 
-    await buildImage(this.docker, repoDir, imageTag);
+    await buildImage(this.docker, repoDir, imageTag, labels);
 
     // `Internal: true` blocks all egress (no default route, no NAT); the
     // arena reaches the bot via its container IP on this bridge instead of
     // a published port — see the file-level comment for the verified
     // reachability model and its Linux-only constraint.
-    const network = await this.docker.createNetwork({ Name: networkName, Internal: true });
+    const network = await this.docker.createNetwork({ Name: networkName, Internal: true, Labels: labels });
 
     const container = await this.docker.createContainer({
       Image: imageTag,
       Env: [`PORT=${port}`],
       ExposedPorts: { [portKey]: {} },
+      Labels: labels,
       HostConfig: {
         NetworkMode: networkName,
         NanoCpus: ONE_CPU_NANOS,
         Memory: MEMORY_BYTES,
+        // Disable swap for the container (Docker's own convention: set
+        // MemorySwap === Memory). Without this a bot can page out to the
+        // host's swap device instead of getting OOM-killed at the 512MB
+        // line, which both defeats the memory cap and can hammer host I/O.
+        MemorySwap: MEMORY_BYTES,
+        PidsLimit: PIDS_LIMIT,
+        ReadonlyRootfs: true,
+        Tmpfs: { '/tmp': TMP_TMPFS_OPTS },
+        LogConfig: {
+          Type: 'json-file',
+          Config: { 'max-size': '1m', 'max-file': '1' },
+        },
         AutoRemove: false,
       },
     });
@@ -188,6 +246,11 @@ export class DockerContainerRuntime implements ContainerRuntime {
       },
       restart: async () => {
         const restartStart = Date.now();
+        // `docker restart` is defined for both a still-`running` container
+        // (e.g. we're proactively cycling it) and an `exited` one (OOM-kill,
+        // or the bot process exiting on its own, including exit 0) — Docker
+        // starts a stopped container rather than erroring, so this one call
+        // covers every crash flavor the transport can observe as `crashed`.
         await container.restart().catch(() => undefined);
         // Docker does not guarantee the same IP on re-attach; re-resolve
         // before health-polling so the transport (which reads baseUrl per

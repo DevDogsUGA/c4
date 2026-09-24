@@ -128,7 +128,7 @@ export function BracketStage({
   /** Standings to morph FROM (SHOW_PLAN.md §9c item 1) -- set only on the very first bracket scene, right after the seeding reveal. */
   morphFromStandings: import('@acm-uga/c4-contract').StandingsEntry[] | null;
 }) {
-  const { layout: split, revealedThrough, justAdvanced, justEliminated } = scene;
+  const { layout: split, revealedThrough, justAdvanced, justEliminated, doubleForfeit } = scene;
 
   const bracketLayout: BracketSceneLayout = useMemo(() => layoutBracket(split), [split]);
   const matchByKey = useMemo(() => {
@@ -152,7 +152,8 @@ export function BracketStage({
   const destinationCard = outgoingConnector
     ? (bracketLayout.cards.find((c) => c.key === outgoingConnector.toKey) ?? (bracketLayout.final?.key === outgoingConnector.toKey ? bracketLayout.final : undefined))
     : undefined;
-  const winnerSide: 'a' | 'b' | undefined = decidedMatch ? (decidedMatch.team_a?.name === justAdvanced?.name ? 'a' : 'b') : undefined;
+  const winnerSide: 'a' | 'b' | undefined =
+    decidedMatch && justAdvanced ? (decidedMatch.team_a?.name === justAdvanced.name ? 'a' : 'b') : undefined;
   const loserSide: 'a' | 'b' | undefined = winnerSide ? (winnerSide === 'a' ? 'b' : 'a') : undefined;
 
   function sideRevealed(cardKey: string, side: 'a' | 'b'): boolean {
@@ -191,6 +192,20 @@ export function BracketStage({
       tracks.push(track({ key: `slot-${decidedCard.key}-${loserSide}`, prop: 'y', t0: 0, t1: TUMBLE_DURATION_MS, from: box.y, to: box.y + 220, ease: easeInCubic }));
       tracks.push(track({ key: `slot-${decidedCard.key}-${loserSide}`, prop: 'rotation', t0: 0, t1: TUMBLE_DURATION_MS, from: 0, to: 0.35, ease: easeInCubic }));
       tracks.push(track({ key: `slot-${decidedCard.key}-${loserSide}`, prop: 'alpha', t0: 150, t1: TUMBLE_DURATION_MS, from: 1, to: 0, ease: easeInCubic }));
+    }
+
+    // --- Double forfeit (both teams out, nobody advances from this slot):
+    // BOTH cards tumble off, mirrored left/right so they read as a pair
+    // rather than a single loser. ---
+    if (decidedCard && doubleForfeit) {
+      for (const side of ['a', 'b'] as const) {
+        const box = bracketNameRowBox(decidedCard, side);
+        const direction = side === 'a' ? -1 : 1;
+        const key = `slot-${decidedCard.key}-${side}`;
+        tracks.push(track({ key, prop: 'y', t0: 0, t1: TUMBLE_DURATION_MS, from: box.y, to: box.y + 220, ease: easeInCubic }));
+        tracks.push(track({ key, prop: 'rotation', t0: 0, t1: TUMBLE_DURATION_MS, from: 0, to: direction * 0.35, ease: easeInCubic }));
+        tracks.push(track({ key, prop: 'alpha', t0: 150, t1: TUMBLE_DURATION_MS, from: 1, to: 0, ease: easeInCubic }));
+      }
     }
 
     if (decidedCard && winnerSide && outgoingConnector && destinationCard) {
@@ -262,6 +277,11 @@ export function BracketStage({
       return <NameSlot key={`${card.key}-${side}`} registerKey={`slot-${card.key}-${side}`} register={timeline.register} x={box.x} y={box.y + box.h / 2} w={box.w} text={label} color={TOKENS.chalk} />;
     }
 
+    if (isDecidedCard && doubleForfeit) {
+      // Double forfeit: BOTH sides tumble off (no winner, no single loser).
+      return <NameSlot key={`${card.key}-${side}`} registerKey={`slot-${card.key}-${side}`} register={timeline.register} x={box.x} y={box.y + box.h / 2} w={box.w} text={label} color={TOKENS.bulldog} />;
+    }
+
     // Static, unanimated slot -- no registration needed.
     return (
       <pixiText
@@ -321,6 +341,20 @@ export function BracketStage({
           originX={bracketNameRowBox(decidedCard, loserSide).x}
           originY={bracketNameRowBox(decidedCard, loserSide).y}
         />
+      ) : null}
+
+      {decidedCard && doubleForfeit ? (
+        <>
+          <pixiText
+            text="DOUBLE FORFEIT"
+            style={eyebrowTextStyle({ fontSize: 14, fill: TOKENS.bulldog })}
+            anchor={{ x: 0.5, y: 1 }}
+            x={decidedCard.x + decidedCard.w / 2}
+            y={decidedCard.y - 6}
+          />
+          <ParticleField config={ELIMINATION_DEBRIS_CONFIG} seed={hashKey(decidedCard.key)} active originX={bracketNameRowBox(decidedCard, 'a').x} originY={bracketNameRowBox(decidedCard, 'a').y} />
+          <ParticleField config={ELIMINATION_DEBRIS_CONFIG} seed={hashKey(decidedCard.key) + 7} active originX={bracketNameRowBox(decidedCard, 'b').x} originY={bracketNameRowBox(decidedCard, 'b').y} />
+        </>
       ) : null}
 
       {destinationCard && outgoingConnector ? (

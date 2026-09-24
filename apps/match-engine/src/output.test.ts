@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import type { MatchRecord, TournamentSummary } from '@acm-uga/c4-contract';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { writeMatchRecord, writeTournamentSummary } from './output.js';
+import { buildTournamentBundle, writeMatchRecord, writeTournamentBundle, writeTournamentSummary } from './output.js';
 
 let dir: string;
 
@@ -69,5 +69,35 @@ describe('writeTournamentSummary', () => {
   it('throws on an invalid summary', async () => {
     const bad = { ...validSummary, generated_at: 'not-a-date' } as unknown as TournamentSummary;
     await expect(writeTournamentSummary(dir, bad)).rejects.toThrow();
+  });
+});
+
+describe('buildTournamentBundle / writeTournamentBundle', () => {
+  it('builds a schema-valid bundle with format/version and optional provenance', () => {
+    const bundle = buildTournamentBundle(validSummary, [validMatch], { seed: 42 });
+    expect(bundle.format).toBe('c4-tournament-bundle');
+    expect(bundle.version).toBe(1);
+    expect(bundle.matches).toEqual([validMatch]);
+    expect(bundle.provenance).toEqual({ seed: 42 });
+  });
+
+  it('omits provenance entirely when not given', () => {
+    const bundle = buildTournamentBundle(validSummary, [validMatch]);
+    expect(bundle.provenance).toBeUndefined();
+  });
+
+  it('throws when building a bundle from an invalid match record', () => {
+    const bad = { ...validMatch, teams: [validMatch.teams[0]] } as unknown as MatchRecord;
+    expect(() => buildTournamentBundle(validSummary, [bad])).toThrow();
+  });
+
+  it('writes the bundle to the given file path, creating parent directories', async () => {
+    const bundle = buildTournamentBundle(validSummary, [validMatch]);
+    const filePath = path.join(dir, 'nested', 'tournament.json');
+    const written = await writeTournamentBundle(filePath, bundle);
+    expect(written).toBe(filePath);
+    const contents = JSON.parse(await readFile(filePath, 'utf8'));
+    expect(contents.format).toBe('c4-tournament-bundle');
+    expect(contents.matches).toEqual([validMatch]);
   });
 });

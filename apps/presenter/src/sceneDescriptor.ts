@@ -25,7 +25,11 @@ export function describeScene(scene: Scene): SceneDescriptor {
     case 'bracket':
       return {
         type: 'bracket',
-        title: scene.justAdvanced ? `Bracket — ${scene.justAdvanced.name} advances` : 'Bracket',
+        title: scene.doubleForfeit
+          ? 'Bracket — double forfeit'
+          : scene.justAdvanced
+            ? `Bracket — ${scene.justAdvanced.name} advances`
+            : 'Bracket',
         teams: [],
       };
     case 'match':
@@ -35,7 +39,9 @@ export function describeScene(scene: Scene): SceneDescriptor {
         teams: scene.match.teams.map((team) => team.name),
       };
     case 'champion':
-      return { type: 'champion', title: 'Champion', teams: [scene.team.name] };
+      return scene.team
+        ? { type: 'champion', title: 'Champion', teams: [scene.team.name] }
+        : { type: 'champion', title: 'No Champion — Double Forfeit', teams: [] };
   }
 }
 

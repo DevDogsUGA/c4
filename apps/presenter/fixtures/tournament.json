@@ -1,0 +1,440 @@
+{
+  "format": "c4-tournament-bundle",
+  "version": 1,
+  "provenance": {
+    "generator": "hand-authored rehearsal fixture",
+    "note": "Edge-case coverage: every match/game forfeit reason, a double forfeit in round robin, a double forfeit in the bracket producing a walkover bye, a double-forfeit final (no champion), a restart event, a draw + sudden death, and teams with/without members+language."
+  },
+  "summary": {
+    "generated_at": "2026-09-24T12:00:00.000Z",
+    "standings": [
+      {
+        "team": {
+          "name": "Team Rocket",
+          "repo_url": "https://github.com/example/team-rocket",
+          "members": ["Ada Lovelace", "Grace Hopper"],
+          "language": "python"
+        },
+        "rank": 1,
+        "match_wins": 1,
+        "match_losses": 0,
+        "game_wins": 2,
+        "game_losses": 0
+      },
+      {
+        "team": {
+          "name": "Segfault Squad",
+          "repo_url": "https://github.com/example/segfault-squad",
+          "members": ["Lee Park", "Kai Nguyen"],
+          "language": "rust"
+        },
+        "rank": 2,
+        "match_wins": 1,
+        "match_losses": 0,
+        "game_wins": 0,
+        "game_losses": 0
+      },
+      {
+        "team": { "name": "Null Pointer", "repo_url": "https://github.com/example/null-pointer", "language": "cpp" },
+        "rank": 3,
+        "match_wins": 1,
+        "match_losses": 0,
+        "game_wins": 0,
+        "game_losses": 0
+      },
+      {
+        "team": { "name": "Kernel Panic", "repo_url": "https://github.com/example/kernel-panic", "language": "c" },
+        "rank": 4,
+        "match_wins": 0,
+        "match_losses": 1,
+        "game_wins": 0,
+        "game_losses": 2
+      },
+      {
+        "team": { "name": "Rando Calrissian", "repo_url": "https://github.com/example/rando-calrissian", "language": "rust" },
+        "rank": 5,
+        "match_wins": 0,
+        "match_losses": 1,
+        "game_wins": 0,
+        "game_losses": 0
+      },
+      {
+        "team": {
+          "name": "Bit Flippers",
+          "repo_url": "https://github.com/example/bit-flippers",
+          "members": ["Sam Okafor"],
+          "language": "go"
+        },
+        "rank": 6,
+        "match_wins": 0,
+        "match_losses": 1,
+        "game_wins": 0,
+        "game_losses": 0
+      },
+      {
+        "team": {
+          "name": "Ctrl Alt Elite",
+          "repo_url": "https://github.com/example/ctrl-alt-elite",
+          "members": ["Jordan Vance"],
+          "language": "javascript"
+        },
+        "rank": 7,
+        "match_wins": 0,
+        "match_losses": 1,
+        "game_wins": 0,
+        "game_losses": 0
+      },
+      {
+        "team": { "name": "Night Owls", "repo_url": "https://github.com/example/night-owls" },
+        "rank": 8,
+        "match_wins": 0,
+        "match_losses": 1,
+        "game_wins": 0,
+        "game_losses": 0
+      }
+    ],
+    "bracket": [
+      {
+        "match_id": "edge-r1-0",
+        "round": "Round 1",
+        "slot": 0,
+        "team_a": { "name": "Team Rocket", "repo_url": "https://github.com/example/team-rocket", "members": ["Ada Lovelace", "Grace Hopper"], "language": "python" },
+        "team_b": { "name": "Night Owls", "repo_url": "https://github.com/example/night-owls" },
+        "winner": { "name": "Team Rocket", "repo_url": "https://github.com/example/team-rocket", "members": ["Ada Lovelace", "Grace Hopper"], "language": "python" },
+        "bye": false
+      },
+      {
+        "match_id": "edge-r1-1",
+        "round": "Round 1",
+        "slot": 1,
+        "team_a": { "name": "Rando Calrissian", "repo_url": "https://github.com/example/rando-calrissian", "language": "rust" },
+        "team_b": { "name": "Bit Flippers", "repo_url": "https://github.com/example/bit-flippers", "members": ["Sam Okafor"], "language": "go" },
+        "winner": null,
+        "bye": false
+      },
+      {
+        "match_id": "edge-r1-2",
+        "round": "Round 1",
+        "slot": 2,
+        "team_a": { "name": "Kernel Panic", "repo_url": "https://github.com/example/kernel-panic", "language": "c" },
+        "team_b": { "name": "Segfault Squad", "repo_url": "https://github.com/example/segfault-squad", "members": ["Lee Park", "Kai Nguyen"], "language": "rust" },
+        "winner": { "name": "Segfault Squad", "repo_url": "https://github.com/example/segfault-squad", "members": ["Lee Park", "Kai Nguyen"], "language": "rust" },
+        "bye": false
+      },
+      {
+        "match_id": "edge-r1-3",
+        "round": "Round 1",
+        "slot": 3,
+        "team_a": { "name": "Ctrl Alt Elite", "repo_url": "https://github.com/example/ctrl-alt-elite", "members": ["Jordan Vance"], "language": "javascript" },
+        "team_b": { "name": "Null Pointer", "repo_url": "https://github.com/example/null-pointer", "language": "cpp" },
+        "winner": { "name": "Null Pointer", "repo_url": "https://github.com/example/null-pointer", "language": "cpp" },
+        "bye": false
+      },
+      {
+        "match_id": null,
+        "round": "Semifinal",
+        "slot": 0,
+        "team_a": { "name": "Team Rocket", "repo_url": "https://github.com/example/team-rocket", "members": ["Ada Lovelace", "Grace Hopper"], "language": "python" },
+        "team_b": null,
+        "winner": { "name": "Team Rocket", "repo_url": "https://github.com/example/team-rocket", "members": ["Ada Lovelace", "Grace Hopper"], "language": "python" },
+        "bye": true
+      },
+      {
+        "match_id": "edge-sf-1",
+        "round": "Semifinal",
+        "slot": 1,
+        "team_a": { "name": "Segfault Squad", "repo_url": "https://github.com/example/segfault-squad", "members": ["Lee Park", "Kai Nguyen"], "language": "rust" },
+        "team_b": { "name": "Null Pointer", "repo_url": "https://github.com/example/null-pointer", "language": "cpp" },
+        "winner": { "name": "Segfault Squad", "repo_url": "https://github.com/example/segfault-squad", "members": ["Lee Park", "Kai Nguyen"], "language": "rust" },
+        "bye": false
+      },
+      {
+        "match_id": "edge-final",
+        "round": "Final",
+        "slot": 0,
+        "team_a": { "name": "Team Rocket", "repo_url": "https://github.com/example/team-rocket", "members": ["Ada Lovelace", "Grace Hopper"], "language": "python" },
+        "team_b": { "name": "Segfault Squad", "repo_url": "https://github.com/example/segfault-squad", "members": ["Lee Park", "Kai Nguyen"], "language": "rust" },
+        "winner": null,
+        "bye": false
+      }
+    ]
+  },
+  "matches": [
+    {
+      "match_id": "edge-rr-1",
+      "phase": "roundrobin",
+      "round": "Round Robin",
+      "teams": [
+        { "name": "Team Rocket", "repo_url": "https://github.com/example/team-rocket", "members": ["Ada Lovelace", "Grace Hopper"], "language": "python" },
+        { "name": "Kernel Panic", "repo_url": "https://github.com/example/kernel-panic", "language": "c" }
+      ],
+      "games": [
+        {
+          "game_number": 1,
+          "first_player": 1,
+          "first_player_team": 0,
+          "coin_flip": true,
+          "moves": [
+            { "player": 1, "column": 0, "think_ms": 120 },
+            { "player": 2, "column": 1, "think_ms": 340 },
+            { "player": 1, "column": 0, "think_ms": 110 },
+            { "player": 2, "column": 1, "think_ms": 260 },
+            { "player": 1, "column": 0, "think_ms": 90 },
+            { "player": 2, "column": 1, "think_ms": 300 },
+            { "player": 1, "column": 0, "think_ms": 150 }
+          ],
+          "clock_events": [],
+          "outcome": { "type": "four_in_a_row", "winner": 1 }
+        },
+        {
+          "game_number": 2,
+          "first_player": 2,
+          "first_player_team": 1,
+          "coin_flip": false,
+          "moves": [{ "player": 2, "column": 3, "think_ms": 210 }],
+          "clock_events": [{ "type": "forfeit", "player": 2, "reason": "invalid_move", "at_move": 1 }],
+          "outcome": { "type": "forfeit", "winner": 1, "forfeited_player": 2, "reason": "invalid_move" }
+        }
+      ],
+      "result": { "winner_team": 0, "games_won": [2, 0], "reason": "played" }
+    },
+    {
+      "match_id": "edge-rr-2",
+      "phase": "roundrobin",
+      "round": "Round Robin",
+      "teams": [
+        { "name": "Rando Calrissian", "repo_url": "https://github.com/example/rando-calrissian", "language": "rust" },
+        { "name": "Segfault Squad", "repo_url": "https://github.com/example/segfault-squad", "members": ["Lee Park", "Kai Nguyen"], "language": "rust" }
+      ],
+      "games": [],
+      "result": {
+        "winner_team": 1,
+        "games_won": [0, 0],
+        "reason": "forfeit",
+        "forfeits": [{ "team": 0, "reason": "build_failed" }]
+      }
+    },
+    {
+      "match_id": "edge-rr-3",
+      "phase": "roundrobin",
+      "round": "Round Robin",
+      "teams": [
+        { "name": "Bit Flippers", "repo_url": "https://github.com/example/bit-flippers", "members": ["Sam Okafor"], "language": "go" },
+        { "name": "Null Pointer", "repo_url": "https://github.com/example/null-pointer", "language": "cpp" }
+      ],
+      "games": [],
+      "result": {
+        "winner_team": 1,
+        "games_won": [0, 0],
+        "reason": "forfeit",
+        "forfeits": [{ "team": 0, "reason": "checkout_failed" }]
+      }
+    },
+    {
+      "match_id": "edge-rr-4",
+      "phase": "roundrobin",
+      "round": "Round Robin",
+      "teams": [
+        { "name": "Ctrl Alt Elite", "repo_url": "https://github.com/example/ctrl-alt-elite", "members": ["Jordan Vance"], "language": "javascript" },
+        { "name": "Night Owls", "repo_url": "https://github.com/example/night-owls" }
+      ],
+      "games": [],
+      "result": {
+        "winner_team": null,
+        "games_won": [0, 0],
+        "reason": "forfeit",
+        "forfeits": [
+          { "team": 0, "reason": "startup_timeout" },
+          { "team": 1, "reason": "build_failed" }
+        ]
+      }
+    },
+    {
+      "match_id": "edge-r1-0",
+      "phase": "bracket",
+      "round": "Round 1",
+      "teams": [
+        { "name": "Team Rocket", "repo_url": "https://github.com/example/team-rocket", "members": ["Ada Lovelace", "Grace Hopper"], "language": "python" },
+        { "name": "Night Owls", "repo_url": "https://github.com/example/night-owls" }
+      ],
+      "games": [
+        {
+          "game_number": 1,
+          "first_player": 1,
+          "first_player_team": 0,
+          "coin_flip": true,
+          "moves": [
+            { "player": 1, "column": 0, "think_ms": 130 },
+            { "player": 2, "column": 1, "think_ms": 200 },
+            { "player": 1, "column": 0, "think_ms": 140 },
+            { "player": 2, "column": 1, "think_ms": 220 },
+            { "player": 1, "column": 0, "think_ms": 100 },
+            { "player": 2, "column": 1, "think_ms": 190 },
+            { "player": 1, "column": 0, "think_ms": 120 }
+          ],
+          "clock_events": [],
+          "outcome": { "type": "four_in_a_row", "winner": 1 }
+        },
+        {
+          "game_number": 2,
+          "first_player": 2,
+          "first_player_team": 1,
+          "coin_flip": false,
+          "moves": [{ "player": 1, "column": 5, "think_ms": 110 }],
+          "clock_events": [{ "type": "forfeit", "player": 2, "reason": "clock_expired", "at_move": 1 }],
+          "outcome": { "type": "forfeit", "winner": 1, "forfeited_player": 2, "reason": "clock_expired" }
+        }
+      ],
+      "result": { "winner_team": 0, "games_won": [2, 0], "reason": "played" }
+    },
+    {
+      "match_id": "edge-r1-1",
+      "phase": "bracket",
+      "round": "Round 1",
+      "teams": [
+        { "name": "Rando Calrissian", "repo_url": "https://github.com/example/rando-calrissian", "language": "rust" },
+        { "name": "Bit Flippers", "repo_url": "https://github.com/example/bit-flippers", "members": ["Sam Okafor"], "language": "go" }
+      ],
+      "games": [],
+      "result": {
+        "winner_team": null,
+        "games_won": [0, 0],
+        "reason": "forfeit",
+        "forfeits": [
+          { "team": 0, "reason": "startup_timeout" },
+          { "team": 1, "reason": "checkout_failed" }
+        ]
+      }
+    },
+    {
+      "match_id": "edge-r1-2",
+      "phase": "bracket",
+      "round": "Round 1",
+      "teams": [
+        { "name": "Kernel Panic", "repo_url": "https://github.com/example/kernel-panic", "language": "c" },
+        { "name": "Segfault Squad", "repo_url": "https://github.com/example/segfault-squad", "members": ["Lee Park", "Kai Nguyen"], "language": "rust" }
+      ],
+      "games": [],
+      "result": {
+        "winner_team": 1,
+        "games_won": [0, 0],
+        "reason": "forfeit",
+        "forfeits": [{ "team": 0, "reason": "startup_timeout" }]
+      }
+    },
+    {
+      "match_id": "edge-r1-3",
+      "phase": "bracket",
+      "round": "Round 1",
+      "teams": [
+        { "name": "Ctrl Alt Elite", "repo_url": "https://github.com/example/ctrl-alt-elite", "members": ["Jordan Vance"], "language": "javascript" },
+        { "name": "Null Pointer", "repo_url": "https://github.com/example/null-pointer", "language": "cpp" }
+      ],
+      "games": [
+        {
+          "game_number": 1,
+          "first_player": 1,
+          "first_player_team": 0,
+          "coin_flip": true,
+          "moves": [
+            { "player": 1, "column": 0, "think_ms": 150 },
+            { "player": 2, "column": 1, "think_ms": 180 },
+            { "player": 1, "column": 2, "think_ms": 130 },
+            { "player": 2, "column": 3, "think_ms": 160 }
+          ],
+          "clock_events": [],
+          "outcome": { "type": "draw" }
+        },
+        {
+          "game_number": 2,
+          "first_player": 2,
+          "first_player_team": 1,
+          "coin_flip": false,
+          "moves": [
+            { "player": 2, "column": 4, "think_ms": 140 },
+            { "player": 1, "column": 5, "think_ms": 170 },
+            { "player": 2, "column": 6, "think_ms": 120 },
+            { "player": 1, "column": 7, "think_ms": 150 }
+          ],
+          "clock_events": [],
+          "outcome": { "type": "draw" }
+        },
+        {
+          "game_number": 3,
+          "first_player": 1,
+          "first_player_team": 1,
+          "coin_flip": true,
+          "moves": [
+            { "player": 1, "column": 0, "think_ms": 130 },
+            { "player": 2, "column": 1, "think_ms": 200 },
+            { "player": 1, "column": 0, "think_ms": 110 },
+            { "player": 2, "column": 1, "think_ms": 190 },
+            { "player": 1, "column": 0, "think_ms": 100 },
+            { "player": 2, "column": 1, "think_ms": 210 },
+            { "player": 1, "column": 0, "think_ms": 140 }
+          ],
+          "clock_events": [],
+          "outcome": { "type": "four_in_a_row", "winner": 1 }
+        }
+      ],
+      "result": { "winner_team": 1, "games_won": [0, 1], "reason": "played" }
+    },
+    {
+      "match_id": "edge-sf-1",
+      "phase": "bracket",
+      "round": "Semifinal",
+      "teams": [
+        { "name": "Segfault Squad", "repo_url": "https://github.com/example/segfault-squad", "members": ["Lee Park", "Kai Nguyen"], "language": "rust" },
+        { "name": "Null Pointer", "repo_url": "https://github.com/example/null-pointer", "language": "cpp" }
+      ],
+      "games": [
+        {
+          "game_number": 1,
+          "first_player": 1,
+          "first_player_team": 0,
+          "coin_flip": true,
+          "moves": [
+            { "player": 1, "column": 0, "think_ms": 140 },
+            { "player": 2, "column": 1, "think_ms": 220 },
+            { "player": 1, "column": 0, "think_ms": 120 },
+            { "player": 2, "column": 1, "think_ms": 3600 },
+            { "player": 1, "column": 0, "think_ms": 100 },
+            { "player": 2, "column": 1, "think_ms": 240 },
+            { "player": 1, "column": 0, "think_ms": 130 }
+          ],
+          "clock_events": [{ "type": "restart", "player": 2, "billed_ms": 900, "at_move": 3 }],
+          "outcome": { "type": "four_in_a_row", "winner": 1 }
+        },
+        {
+          "game_number": 2,
+          "first_player": 2,
+          "first_player_team": 1,
+          "coin_flip": false,
+          "moves": [{ "player": 2, "column": 3, "think_ms": 150 }],
+          "clock_events": [{ "type": "forfeit", "player": 2, "reason": "crash_loop", "at_move": 1 }],
+          "outcome": { "type": "forfeit", "winner": 1, "forfeited_player": 2, "reason": "crash_loop" }
+        }
+      ],
+      "result": { "winner_team": 0, "games_won": [2, 0], "reason": "played" }
+    },
+    {
+      "match_id": "edge-final",
+      "phase": "bracket",
+      "round": "Final",
+      "teams": [
+        { "name": "Team Rocket", "repo_url": "https://github.com/example/team-rocket", "members": ["Ada Lovelace", "Grace Hopper"], "language": "python" },
+        { "name": "Segfault Squad", "repo_url": "https://github.com/example/segfault-squad", "members": ["Lee Park", "Kai Nguyen"], "language": "rust" }
+      ],
+      "games": [],
+      "result": {
+        "winner_team": null,
+        "games_won": [0, 0],
+        "reason": "forfeit",
+        "forfeits": [
+          { "team": 0, "reason": "build_failed" },
+          { "team": 1, "reason": "checkout_failed" }
+        ]
+      }
+    }
+  ]
+}

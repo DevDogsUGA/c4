@@ -38,3 +38,6 @@ yarn-error.log*
 
 # Wrangler local state
 .wrangler/
+
+# Agent worktrees
+.claude/

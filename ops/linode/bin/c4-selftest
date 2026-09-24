@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+# Run the monorepo's Docker-backed test suites on the box itself (these need
+# a real Docker daemon + real CPU headroom, so they don't run in CI). Reports
+# a timing table so you can tell if the box is under-provisioned before the
+# event starts.
+#
+# Some of these commands are placeholders for suites other workstreams are
+# still building (packages/samples conformance + rehearsal, the Docker
+# lifecycle tests in match-engine); they're wired up so this script works
+# unchanged once those land. A missing script is reported, not fatal.
+#
+# Usage: c4-selftest
+set -euo pipefail
+
+C4_DIR=${C4_DIR:-/opt/c4/c4}
+cd "$C4_DIR"
+
+declare -a NAMES=()
+declare -a CMDS=()
+
+NAMES+=("fast suites (pnpm test)")
+CMDS+=("pnpm test")
+
+NAMES+=("match-engine docker lifecycle tests")
+CMDS+=("C4_DOCKER_TESTS=1 pnpm -C apps/match-engine test")
+
+NAMES+=("samples conformance (9-language reference bots)")
+CMDS+=("pnpm -C packages/samples conformance")
+
+NAMES+=("32-team dress rehearsal")
+CMDS+=("pnpm -C packages/samples rehearsal --teams 32")
+
+echo "== c4-selftest: $(date -u +%FT%TZ) on $(hostname), $(nproc) cores =="
+echo
+
+overall_status=0
+RESULTS_FILE=$(mktemp)
+trap 'rm -f "$RESULTS_FILE"' EXIT
+
+for i in "${!NAMES[@]}"; do
+  name="${NAMES[$i]}"
+  cmd="${CMDS[$i]}"
+  echo "-- $name --"
+  echo "   \$ $cmd"
+  start=$(date +%s)
+  if eval "$cmd"; then
+    status="PASS"
+  else
+    status="FAIL"
+    overall_status=1
+  fi
+  end=$(date +%s)
+  elapsed=$((end - start))
+  printf '%s\t%s\t%ss\n' "$name" "$status" "$elapsed" >> "$RESULTS_FILE"
+  echo
+done
+
+echo "== Summary =="
+printf '%-45s %-8s %s\n' "SUITE" "STATUS" "TIME"
+while IFS=$'\t' read -r name status elapsed; do
+  printf '%-45s %-8s %s\n' "$name" "$status" "$elapsed"
+done < "$RESULTS_FILE"
+
+exit $overall_status

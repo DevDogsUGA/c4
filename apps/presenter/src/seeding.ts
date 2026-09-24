@@ -49,16 +49,23 @@ export function sortMoves(standings: readonly StandingsEntry[]): SeedingMove[] {
 }
 
 /**
- * One marquee line per round-robin match, e.g. "TEAM A def. TEAM B 2-1".
- * The winner is `result.winner_team`; the score is `games_won` ordered
- * winner-first. Non-roundrobin (bracket) matches are excluded -- the
- * marquee is round-robin flavor only, per SHOW_PLAN.md §4.2.
+ * One marquee line per round-robin match, e.g. "TEAM A def. TEAM B 2-1". A
+ * double forfeit (`winner_team: null` -- both teams forfeited, a loss for
+ * both per the contract) has no winner to lead with, so it renders as
+ * "TEAM A vs. TEAM B — double forfeit" instead. The winner is
+ * `result.winner_team`; the score is `games_won` ordered winner-first.
+ * Non-roundrobin (bracket) matches are excluded -- the marquee is
+ * round-robin flavor only, per SHOW_PLAN.md §4.2.
  */
 export function marqueeLines(matches: readonly MatchRecord[]): string[] {
   return matches
     .filter((match) => match.phase === 'roundrobin')
     .map((match) => {
       const winnerSlot = match.result.winner_team;
+      if (winnerSlot === null) {
+        const [teamA, teamB] = match.teams;
+        return `${teamA!.name} vs. ${teamB!.name} — double forfeit`;
+      }
       const loserSlot = winnerSlot === 0 ? 1 : 0;
       const winner = match.teams[winnerSlot]!.name;
       const loser = match.teams[loserSlot]!.name;

@@ -9,10 +9,19 @@ import type { TeamRef } from '@acm-uga/c4-contract';
 export interface Team {
   readonly name: string;
   readonly repoUrl: string;
+  /** Member display names from the submission form, for presenter intros. */
+  readonly members?: readonly string[];
+  /** Template language detected from the frozen checkout (e.g. "python"). Populated by the prepare phase, not by roster loading. */
+  readonly language?: string;
 }
 
 export function toTeamRef(team: Team): TeamRef {
-  return { name: team.name, repo_url: team.repoUrl };
+  return {
+    name: team.name,
+    repo_url: team.repoUrl,
+    ...(team.members ? { members: [...team.members] } : {}),
+    ...(team.language ? { language: team.language } : {}),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -79,7 +88,23 @@ export interface BotProvider {
    * Prepares a bot and hands back a ready-to-use transport. Should throw
    * StartupTimeoutError (see docker/container-runtime.ts) if the bot never
    * becomes healthy within `healthGraceMs` — the caller turns that into a
-   * "startup_timeout" match forfeit per DESIGN.md.
+   * "startup_timeout" match forfeit per DESIGN.md. Should throw
+   * ImageBuildError (or any other error) if the image failed to build — the
+   * caller turns that into a "build_failed" match forfeit.
    */
   start(options: BotProviderStartOptions): Promise<StartedBot>;
+
+  /**
+   * Optional prebuild hook for the submission-freeze workflow: builds
+   * (and, for real providers, caches) whatever `start` needs for `repoDir`
+   * ahead of time, so the freeze/prepare phase — not match play — is where
+   * checkout/build failures surface. Providers that don't implement this
+   * (e.g. today's DockerBotProvider) simply build on the first `start()`
+   * call as before; callers must treat `prepare` as best-effort optimism,
+   * not a guarantee that `start` will skip building.
+   *
+   * Throws the same error types `start` does (StartupTimeoutError /
+   * ImageBuildError / other) on failure.
+   */
+  prepare?(repoDir: string): Promise<void>;
 }

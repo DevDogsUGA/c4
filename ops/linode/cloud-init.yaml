@@ -1,0 +1,267 @@
+#cloud-config
+# Connect Four hackathon arena box. Fresh Ubuntu 24.04, 64c/128GB Dedicated
+# CPU Linode. Validate before use:
+#   cloud-init schema --config-file ops/linode/cloud-init.yaml
+#
+# After boot finishes (watch with `cloud-init status --wait`):
+#   1. sudo editor /etc/c4/env   # fill in every placeholder (see env.example)
+#   2. sudo systemctl restart c4-watch   # only once C4_WATCH_ENABLED=1
+# See ops/linode/README.md for the full runbook.
+
+hostname: c4-arena
+timezone: America/New_York
+
+package_update: true
+package_upgrade: false # don't risk a kernel/docker bump mid-provision; do it manually beforehand if needed
+
+users:
+  - default
+  - name: c4
+    groups: [docker]
+    shell: /bin/bash
+    sudo: null
+    lock_passwd: true
+
+packages:
+  - ca-certificates
+  - curl
+  - gnupg
+  - git
+  - jq
+  - apt-transport-https
+  - software-properties-common
+
+write_files:
+  # --- Docker daemon: cap log growth (many short-lived match containers) and
+  # keep already-running containers alive across a daemon restart/upgrade.
+  - path: /etc/docker/daemon.json
+    permissions: '0644'
+    content: |
+      {
+        "log-driver": "json-file",
+        "log-opts": {
+          "max-size": "1m",
+          "max-file": "1"
+        },
+        "live-restore": true
+      }
+
+  # --- /etc/c4/env: placeholders only. The operator fills in real secrets
+  # after boot; cloud-init never receives them (nothing here is a real
+  # credential). Mode 0600, owned by c4:c4 -- see the final chown/chmod in
+  # runcmd (write_files can't set arbitrary ownership before the user exists).
+  - path: /etc/c4/env
+    permissions: '0600'
+    content: |
+      # Filled in manually after boot. See ops/linode/env.example for docs.
+      C4_REPO_TOKEN=REPLACE_ME
+      WORKER_URL=REPLACE_ME
+      C4_ROSTER_TOKEN=REPLACE_ME
+      RESULTS_TOKEN=REPLACE_ME
+      BACKUP_ROSTER_URL=REPLACE_ME
+      DISCORD_WEBHOOK_URL=REPLACE_ME
+      GITHUB_TOKEN=REPLACE_ME
+      R2_ACCOUNT_ID=REPLACE_ME
+      R2_ACCESS_KEY_ID=REPLACE_ME
+      R2_SECRET_ACCESS_KEY=REPLACE_ME
+      R2_BUCKET=REPLACE_ME
+      C4_WATCH_ENABLED=0
+      C4_ENGINE_BIN=/opt/c4/c4/apps/match-engine/dist/cli.js
+      C4_WATCH_STATE_FILE=/var/lib/c4/arena-watch-state.json
+      C4_WATCH_POLL_INTERVAL_MS=60000
+      C4_WATCH_CONCURRENCY=4
+      PRESENTER_ORIGIN=http://localhost:5173
+
+  # --- sysctl: many short-lived containers + many inotify watchers (pnpm,
+  # vite, tsc watch mode during rehearsal) + many outbound connections
+  # (ls-remote/validate fan-out against GitHub).
+  - path: /etc/sysctl.d/99-c4-arena.conf
+    permissions: '0644'
+    content: |
+      # inotify: pnpm/tsc/vite watchers across dozens of team checkouts
+      fs.inotify.max_user_watches=1048576
+      fs.inotify.max_user_instances=8192
+
+      # pids: 64 cores worth of match containers, each with its own process tree
+      kernel.pid_max=4194304
+      kernel.threads-max=4194304
+
+      # net: bursty outbound connections (roster polling, GitHub, Discord, R2)
+      net.core.somaxconn=4096
+      net.ipv4.ip_local_port_range=1024 65535
+      net.ipv4.tcp_tw_reuse=1
+      net.netfilter.nf_conntrack_max=1048576
+
+  # --- Disable unattended upgrades for the event window: a surprise apt
+  # upgrade / reboot mid-tournament is the one failure mode we can't recover
+  # from live. Re-enable after teardown if the box survives (it shouldn't --
+  # see README teardown section).
+  - path: /etc/apt/apt.conf.d/20auto-upgrades
+    permissions: '0644'
+    content: |
+      APT::Periodic::Update-Package-Lists "0";
+      APT::Periodic::Unattended-Upgrade "0";
+
+  # --- Keys-only SSH. Bots can reach the host's bridge IP, so no password
+  # login may exist for them to guess at.
+  - path: /etc/ssh/sshd_config.d/10-c4.conf
+    permissions: '0644'
+    content: |
+      PasswordAuthentication no
+      KbdInteractiveAuthentication no
+      PermitRootLogin prohibit-password
+
+  # --- Bots may not open connections to the host itself. Per-container
+  # networks are Internal (no internet, no cross-team routes), but the host
+  # still owns an IP on each bridge. Drop NEW connections arriving from any
+  # user-defined bridge (br-*); replies to the engine's own requests are
+  # ESTABLISHED and still pass. docker0 is left alone so image builds work.
+  - path: /etc/systemd/system/c4-hostguard.service
+    permissions: '0644'
+    content: |
+      [Unit]
+      Description=C4: block bot containers from connecting to the host
+      After=docker.service
+      Requires=docker.service
+
+      [Service]
+      Type=oneshot
+      RemainAfterExit=yes
+      ExecStart=/bin/sh -c 'iptables -C INPUT -i br-+ -m conntrack --ctstate NEW -j DROP 2>/dev/null || iptables -I INPUT 1 -i br-+ -m conntrack --ctstate NEW -j DROP'
+      ExecStart=/bin/sh -c 'ip6tables -C INPUT -i br-+ -m conntrack --ctstate NEW -j DROP 2>/dev/null || ip6tables -I INPUT 1 -i br-+ -m conntrack --ctstate NEW -j DROP'
+
+      [Install]
+      WantedBy=multi-user.target
+
+  # --- Let c4 restart/inspect only its own service, nothing else. Needed so
+  # deploy.sh (which runs as c4, the hotfix path) can restart c4-watch
+  # without full sudo.
+  - path: /etc/sudoers.d/c4-watch
+    permissions: '0440'
+    content: |
+      c4 ALL=(root) NOPASSWD: /usr/bin/systemctl restart c4-watch.service, /usr/bin/systemctl status c4-watch.service, /usr/bin/systemctl is-active c4-watch.service
+
+  - path: /etc/systemd/system/c4-watch.service
+    permissions: '0644'
+    content: |
+      [Unit]
+      Description=C4 arena-watch: poll roster, build+smoke-test new commits
+      After=network-online.target docker.service
+      Wants=network-online.target
+      Requires=docker.service
+
+      [Service]
+      Type=simple
+      User=c4
+      Group=c4
+      EnvironmentFile=/etc/c4/env
+      WorkingDirectory=/opt/c4/c4/apps/arena-watch
+      ExecStart=/usr/bin/node /opt/c4/c4/apps/arena-watch/dist/index.js
+      Restart=always
+      RestartSec=5
+      StandardOutput=journal
+      StandardError=journal
+      SyslogIdentifier=c4-watch
+
+      # Modest hardening -- outbound-only network service running as an
+      # unprivileged user, but still touches the docker socket transitively
+      # via the engine CLI it shells out to, so we don't sandbox the
+      # filesystem beyond ProtectHome.
+      NoNewPrivileges=true
+      ProtectHome=read-only
+      ProtectSystem=full
+
+      [Install]
+      WantedBy=multi-user.target
+
+runcmd:
+  # --- Docker CE from Docker's own apt repo (not Ubuntu's, which lags) ---
+  - install -m 0755 -d /etc/apt/keyrings
+  - curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+  - chmod a+r /etc/apt/keyrings/docker.asc
+  - >
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc]
+    https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable"
+    > /etc/apt/sources.list.d/docker.list
+  - apt-get update -y
+  - apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+  - systemctl enable --now docker
+  - systemctl daemon-reload
+  - systemctl enable --now c4-hostguard.service
+  - systemctl reload ssh || systemctl reload sshd || true
+
+  # --- Node 22 from NodeSource, then pnpm via corepack ---
+  - curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+  - apt-get install -y nodejs
+  - corepack enable
+  - corepack prepare pnpm@12.4.2 --activate
+
+  # --- sysctl / docker daemon config takes effect ---
+  - sysctl --system
+  - systemctl restart docker
+
+  # --- Working dirs owned by c4 ---
+  - install -d -o c4 -g c4 -m 0755 /opt/c4
+  - install -d -o c4 -g c4 -m 0750 /var/lib/c4
+  - chown c4:c4 /etc/c4/env
+  - chmod 0600 /etc/c4/env
+
+  # --- Clone both repos as c4. The token is passed through a one-shot git
+  # credential helper (-c credential.helper=... on the clone invocation only)
+  # so it never lands in .git/config or shell history on disk.
+  - |
+    su - c4 -c '
+      set -euo pipefail
+      . /etc/c4/env
+      cd /opt/c4
+      if [ "$C4_REPO_TOKEN" != "REPLACE_ME" ] && [ -n "$C4_REPO_TOKEN" ]; then
+        git -c credential.helper="!f() { echo username=x-access-token; echo password=$C4_REPO_TOKEN; }; f" \
+          clone https://github.com/DevDogsUGA/c4.git c4
+      else
+        echo "C4_REPO_TOKEN not set yet -- skipping private clone; re-run: sudo -u c4 -H bash -c '\''cd /opt/c4 && git clone https://github.com/DevDogsUGA/c4.git c4'\''" >&2
+      fi
+      git clone https://github.com/DevDogsUGA/c4-hackathon.git c4-hackathon || true
+    '
+
+  # --- Install + build the private monorepo, if the clone succeeded ---
+  - |
+    su - c4 -c '
+      set -euo pipefail
+      if [ -d /opt/c4/c4/.git ]; then
+        cd /opt/c4/c4
+        pnpm install --frozen-lockfile
+        pnpm build
+      else
+        echo "skipping pnpm install/build -- /opt/c4/c4 not cloned yet" >&2
+      fi
+    '
+
+  # --- Pre-pull every base image the 9 templates build FROM, so event-day
+  # builds only pay for the team's own layers, not a fresh image pull under
+  # tournament load. Tagged a5- is N/A here (these are shared base images,
+  # not our own containers) but we still never touch anyone else's images.
+  - |
+    for img in \
+      python:3.12-slim \
+      node:20-slim \
+      node:22-slim \
+      eclipse-temurin:17-jdk \
+      eclipse-temurin:17-jre \
+      golang:1.23-alpine \
+      gcr.io/distroless/static-debian12 \
+      mcr.microsoft.com/dotnet/sdk:8.0 \
+      mcr.microsoft.com/dotnet/aspnet:8.0 \
+      gcc:13-bookworm \
+      debian:bookworm-slim \
+      rust:1-slim \
+      ; do
+        docker pull "$img" || echo "WARN: failed to pull $img" >&2
+      done
+
+  # --- systemd units ---
+  - systemctl daemon-reload
+  - systemctl enable c4-watch.service
+  # Not started here: C4_WATCH_ENABLED=0 until the operator fills in
+  # /etc/c4/env and flips it on deliberately (see README T-30 section).
+
+final_message: "c4-arena provisioned in $UPTIME seconds. Now: fill in /etc/c4/env, then see ops/linode/README.md."
