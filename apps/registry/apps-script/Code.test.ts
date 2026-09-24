@@ -17,6 +17,9 @@ function loadAppsScript(): {
   buildFormPayload: (opts: Record<string, unknown>) => Record<string, unknown>;
   findAnswerByTitle: (items: unknown[], titleContains: string) => unknown;
   extractAnswers: (items: unknown[]) => Record<string, unknown>;
+  safeRespondentEmail_: (formResponse: unknown) => string;
+  payloadFromFormResponse_: (formResponse: unknown) => Record<string, unknown>;
+  doGet: (e: unknown) => { getContent: () => string };
 } {
   const code = readFileSync(path.join(__dirname, 'Code.gs'), 'utf8');
   const moduleShim = { exports: {} as Record<string, unknown> };
@@ -120,5 +123,123 @@ describe('findAnswerByTitle / extractAnswers', () => {
       repoUrl: 'https://github.com/dogs/bot',
       membersText: 'A\nB',
     });
+  });
+});
+
+describe('safeRespondentEmail_', () => {
+  it('returns the respondent email when available', () => {
+    const fr = { getRespondentEmail: () => 'a@uga.edu' };
+    expect(gs.safeRespondentEmail_(fr)).toBe('a@uga.edu');
+  });
+
+  it("returns '' when getRespondentEmail() returns an empty string", () => {
+    const fr = { getRespondentEmail: () => '' };
+    expect(gs.safeRespondentEmail_(fr)).toBe('');
+  });
+
+  it("returns '' when getRespondentEmail() throws (collection disabled)", () => {
+    const fr = {
+      getRespondentEmail: () => {
+        throw new Error('Email collection is not enabled for this form.');
+      },
+    };
+    expect(gs.safeRespondentEmail_(fr)).toBe('');
+  });
+});
+
+/**
+ * doGet and payloadFromFormResponse_ call GAS-only globals (FormApp,
+ * PropertiesService, ContentService). `new Function('module', 'exports',
+ * code)` runs the script body in global scope (not a lexical closure over
+ * this test file), so these shims are installed as real globals for the
+ * duration of each test and removed afterwards.
+ */
+describe('doGet (shimmed FormApp/PropertiesService/ContentService)', () => {
+  const ROSTER_TOKEN = 'test-roster-token';
+
+  function makeItemResponses(answers: { teamName: string; repoUrl: string; membersText: string }) {
+    return [
+      { title: 'Team Name', response: answers.teamName },
+      { title: 'GitHub Repo URL', response: answers.repoUrl },
+      { title: 'Team members (one per line)', response: answers.membersText },
+    ];
+  }
+
+  function makeFormResponse(opts: {
+    id: string;
+    teamName: string;
+    repoUrl: string;
+    membersText: string;
+    timestamp?: Date;
+    respondentEmail?: string | (() => string);
+  }) {
+    return {
+      getId: () => opts.id,
+      getItemResponses: () => makeItemResponses(opts),
+      getTimestamp: () => opts.timestamp ?? new Date('2026-09-24T00:00:00.000Z'),
+      getRespondentEmail: () => {
+        if (typeof opts.respondentEmail === 'function') return opts.respondentEmail();
+        if (opts.respondentEmail === undefined) {
+          throw new Error('Email collection is not enabled for this form.');
+        }
+        return opts.respondentEmail;
+      },
+    };
+  }
+
+  function installShims(responses: unknown[]) {
+    const form = { getResponses: () => responses };
+    (globalThis as Record<string, unknown>).FormApp = {
+      getActiveForm: () => form,
+      openById: () => form,
+    };
+    (globalThis as Record<string, unknown>).PropertiesService = {
+      getScriptProperties: () => ({
+        getProperty: (name: string) => (name === 'ROSTER_TOKEN' ? ROSTER_TOKEN : null),
+      }),
+    };
+    (globalThis as Record<string, unknown>).ContentService = {
+      MimeType: { JSON: 'JSON' },
+      createTextOutput: (text: string) => ({
+        setMimeType: () => ({ getContent: () => text }),
+      }),
+    };
+  }
+
+  function removeShims() {
+    delete (globalThis as Record<string, unknown>).FormApp;
+    delete (globalThis as Record<string, unknown>).PropertiesService;
+    delete (globalThis as Record<string, unknown>).ContentService;
+  }
+
+  it('returns one team per form response, with empty submitter_email when the form collects none', () => {
+    const responses = [
+      makeFormResponse({ id: 'r1', teamName: 'Team A', repoUrl: 'https://github.com/a/a', membersText: 'Alice' }),
+      makeFormResponse({ id: 'r2', teamName: 'Team B', repoUrl: 'https://github.com/b/b', membersText: 'Bob' }),
+      makeFormResponse({ id: 'r3', teamName: 'Team C', repoUrl: 'https://github.com/c/c', membersText: 'Carol' }),
+    ];
+    installShims(responses);
+    try {
+      const result = gs.doGet({ parameter: { token: ROSTER_TOKEN } });
+      const body = JSON.parse(result.getContent()) as { teams: Array<Record<string, unknown>> };
+      expect(body.teams).toHaveLength(3);
+      expect(body.teams.map((t) => t.id).sort()).toEqual(['r1', 'r2', 'r3']);
+      for (const team of body.teams) {
+        expect(team.submitter_email).toBe('');
+      }
+    } finally {
+      removeShims();
+    }
+  });
+
+  it('rejects a missing/incorrect token', () => {
+    installShims([]);
+    try {
+      const result = gs.doGet({ parameter: { token: 'wrong' } });
+      const body = JSON.parse(result.getContent()) as { error?: string };
+      expect(body.error).toBe('unauthorized');
+    } finally {
+      removeShims();
+    }
   });
 });

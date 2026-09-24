@@ -153,7 +153,7 @@ export function renderAdminPage(opts: {
         .join('\n');
 
       return `<div class="card">
-  <h3>${esc(t.team_name)} <span class="members">(${esc(t.submitter_email)})</span></h3>
+  <h3>${esc(t.team_name)} <span class="members">(${esc(t.submitter_email || '—')})</span></h3>
   <p class="members">Members: ${members}</p>
   <p><a href="${esc(t.repo_url)}" target="_blank" rel="noopener">${esc(t.repo_url)}</a> &middot; response ${esc(t.response_id)} &middot; updated ${esc(t.updated_at)}</p>
   <p>Repo: ${reachabilityBadge(status)} ${status?.latest_commit ? `(commit ${esc(status.latest_commit.slice(0, 7))})` : ''} &middot; Actions: ${actionsBadge(status)}</p>
@@ -173,7 +173,7 @@ export function renderAdminPage(opts: {
   const logRows = (formLog as Array<Record<string, unknown>>)
     .map(
       (l) =>
-        `<tr><td data-label="At">${esc(String(l.created_at))}</td><td data-label="Outcome">${badge(String(l.outcome), l.outcome === 'accepted' ? 'ok' : 'bad')}</td><td data-label="Team">${esc(String(l.team_name ?? ''))}</td><td data-label="Email">${esc(String(l.submitter_email ?? ''))}</td><td data-label="Repo">${esc(String(l.repo_url ?? ''))}</td><td data-label="Reason">${esc(String(l.reject_reason ?? ''))}</td></tr>`,
+        `<tr><td data-label="At">${esc(String(l.created_at))}</td><td data-label="Outcome">${badge(String(l.outcome), l.outcome === 'accepted' ? 'ok' : 'bad')}</td><td data-label="Team">${esc(String(l.team_name ?? ''))}</td><td data-label="Email">${esc(String(l.submitter_email ?? '') || '—')}</td><td data-label="Repo">${esc(String(l.repo_url ?? ''))}</td><td data-label="Reason">${esc(String(l.reject_reason ?? ''))}</td></tr>`,
     )
     .join('\n');
 

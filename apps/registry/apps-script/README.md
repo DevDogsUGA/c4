@@ -19,9 +19,12 @@ differ. Deploy this directory to each Form separately with `clasp`.
 ## One-time setup per Form (production and, separately, staging)
 
 1. Create the Google Form with fields **Team name**, **GitHub repo URL**,
-   **Team members** (paragraph, one per line). Enable **Collect email
-   addresses > Verified** (production only) and **Allow response editing**.
-   For the production form, restrict to your Google Workspace domain.
+   **Team members** (paragraph, one per line). Enable **Allow response
+   editing**. For the production form, restrict to your Google Workspace
+   domain. The form does **not** collect email addresses — everyone
+   registers from the same room, so team identity is the form response id
+   (stable across edits), not an email; `submitter_email` in the payload is
+   just whatever `getRespondentEmail()` happens to return (often '').
 
 2. Open the Form, **Extensions > Apps Script**, note the Script ID from
    **Project Settings**, or create the project locally and push with
@@ -78,7 +81,7 @@ differ. Deploy this directory to each Form separately with `clasp`.
   read path.
 - `resyncAll` (run manually from the Apps Script editor, or via a time
   trigger) re-POSTs every response in the form to `/api/form`. The Worker's
-  upsert is idempotent per `response_id`/email, so re-sending is safe.
+  upsert is idempotent per `response_id`, so re-sending is safe.
 
 ## Testing
 

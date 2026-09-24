@@ -38,7 +38,13 @@ export type TeamEnv = 'production' | 'staging';
 /** Body posted by the Apps Script on form submit/edit. */
 export interface FormPayload {
   response_id: string;
-  submitter_email: string;
+  /**
+   * Optional: the Google Form no longer collects email addresses (everyone
+   * registers in person), so this is often empty/missing. Never used for
+   * team identity — see response_id — and stored as-is (empty string
+   * allowed).
+   */
+  submitter_email?: string;
   team_name: string;
   repo_url: string;
   members: string[];
