@@ -1,22 +1,29 @@
 #!/usr/bin/env node
-// Headless CLI per IMPLEMENTATION_PLAN.md: `c4 run-tournament`, `c4
-// validate`, `c4 run-match`.
+// Headless CLI per EVENT_PLAN.md's "Engine CLI" shared interfaces:
+// `c4 freeze`, `c4 run-tournament [--lock]`, `c4 validate [--json]`,
+// `c4 run-match`, plus `--bundle`/`--upload-r2` on run-tournament.
 
+import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { THINK_BUDGET_MS } from '@acm-uga/c4-contract';
 import { Command } from 'commander';
 import Docker from 'dockerode';
 import { DockerContainerRuntime } from './docker/container-runtime.js';
 import { DockerBotProvider } from './docker/docker-bot-provider.js';
-import { checkoutRepo } from './git.js';
+import { checkoutRepo, checkoutRepoAtCommit } from './git.js';
+import { freeze, readLockFile, writeLockFile, type LockFile } from './lock.js';
 import { orchestrateMatch } from './match-orchestrator.js';
+import { prepareTeams, type PreparedTeam } from './prepare.js';
+import { presignGetUrl, r2CredentialsFromEnv, uploadToR2, bundleObjectKey } from './r2.js';
 import { createSeededRng } from './rng.js';
-import { parseRosterCsv } from './roster.js';
+import { loadRoster } from './roster.js';
 import { matchConcurrency } from './scheduler.js';
 import { runTournament } from './tournament-runner.js';
+import type { MatchForfeitReason } from '@acm-uga/c4-contract';
 import type { Team } from './types.js';
-import { validateAll } from './validate.js';
+import { validateAll, type ValidateOptions, type ValidateTeamResult } from './validate.js';
 import { writeMatchRecord } from './output.js';
 
 const program = new Command();
@@ -26,81 +33,209 @@ function makeProvider(): DockerBotProvider {
   return new DockerBotProvider(new DockerContainerRuntime(new Docker()));
 }
 
-async function loadRoster(rosterPath: string): Promise<Team[]> {
-  const text = await readFile(rosterPath, 'utf8');
-  return parseRosterCsv(text);
-}
-
 function defaultSeed(): number {
   return Date.now() >>> 0;
 }
 
+function hashFile(text: string): string {
+  return createHash('sha256').update(text).digest('hex').slice(0, 16);
+}
+
+/** Turns a prepare.ts sweep into the maps runTournament/validate consume. */
+function forfeitsAndLanguagesFrom(prepared: PreparedTeam[]): {
+  forfeits: Map<string, MatchForfeitReason>;
+  languages: Map<string, string>;
+  repoDirs: Map<string, string>;
+} {
+  const forfeits = new Map<string, MatchForfeitReason>();
+  const languages = new Map<string, string>();
+  const repoDirs = new Map<string, string>();
+  for (const p of prepared) {
+    if (p.forfeit) forfeits.set(p.team.name, p.forfeit);
+    if (p.language) languages.set(p.team.name, p.language);
+    if (p.repoDir) repoDirs.set(p.team.name, p.repoDir);
+  }
+  return { forfeits, languages, repoDirs };
+}
+
+function applyLanguages(teams: Team[], languages: Map<string, string>): Team[] {
+  return teams.map((t) => (languages.has(t.name) ? { ...t, language: languages.get(t.name) } : t));
+}
+
+program
+  .command('freeze')
+  .description('Resolve every team\'s current default-branch commit into a lock file (the submission freeze)')
+  .requiredOption('--roster <source>', 'CSV path, JSON path, or https URL')
+  .requiredOption('--output <path>', 'lock file to write')
+  .option('--concurrency <n>', 'bounded concurrency for the git ls-remote sweep', (v) => Number(v), 8)
+  .action(async (opts) => {
+    const teams = await loadRoster(opts.roster);
+    const lock = await freeze(teams, { concurrency: opts.concurrency });
+    await writeLockFile(opts.output, lock);
+
+    const failed = lock.teams.filter((t) => t.commit === null);
+    console.log(`Wrote ${opts.output}: ${lock.teams.length} teams, ${failed.length} unresolved.`);
+    for (const t of failed) {
+      console.error(`  FAIL  ${t.name}: ${t.error}`);
+    }
+    if (failed.length > 0) process.exitCode = 1;
+  });
+
 program
   .command('run-tournament')
-  .description('Run the full round-robin + bracket tournament from a roster CSV, emitting game records + a summary')
-  .requiredOption('--roster <path>', 'CSV of team name,repo url (Google Form export)')
-  .requiredOption('--output <dir>', 'directory to write game-record JSON files + tournament-summary.json')
+  .description('Run the full round-robin + bracket tournament from a roster, emitting game records + a summary + a bundle')
+  .requiredOption('--roster <source>', 'CSV path, JSON path, or https URL')
+  .requiredOption('--output <dir>', 'directory to write game-record JSON files + tournament-summary.json + tournament.json')
+  .option('--lock <path>', 'submission-freeze lock file (see `c4 freeze`); when omitted, freezes implicitly at start')
   .option('--work-dir <dir>', 'directory to check out team repos into', '.c4-checkouts')
   .option('--seed <n>', 'RNG seed for coin flips (deterministic if set)', (v) => Number(v))
-  .option('--think-ms <n>', 'per-player, per-game think budget in ms', (v) => Number(v), 10_000)
+  .option('--think-ms <n>', 'per-player, per-game think budget in ms', (v) => Number(v), THINK_BUDGET_MS)
   .option('--port <n>', 'container port the bot listens on', (v) => Number(v), 8000)
   .option('--health-grace-ms <n>', 'off-clock startup health-check grace', (v) => Number(v), 30_000)
   .option('--min-bracket-slots <n>', 'minimum single-elimination bracket size', (v) => Number(v), 16)
   .option('--concurrency <n>', 'max matches run in parallel (default: host-sized)', (v) => Number(v))
+  .option('--bundle <path>', 'also write the single-file tournament bundle to this path')
+  .option('--upload-r2', 'upload the bundle to R2 and print a 7-day presigned GET URL', false)
   .action(async (opts) => {
     const teams = await loadRoster(opts.roster);
     const rng = createSeededRng(opts.seed ?? defaultSeed());
     const provider = makeProvider();
     const workDir = path.resolve(opts.workDir);
+    const concurrency = opts.concurrency ?? matchConcurrency(os.cpus().length);
+
+    let lock: LockFile | undefined;
+    let lockHash: string | undefined;
+    if (opts.lock) {
+      const lockText = await readFile(opts.lock, 'utf8');
+      lock = await readLockFile(opts.lock);
+      lockHash = hashFile(lockText);
+    }
+
+    console.error(`Preparing ${teams.length} teams (checkout + language detect + build validation)...`);
+    const prepared = await prepareTeams(teams, { provider, workDir, lock, botPort: opts.port, healthGraceMs: opts.healthGraceMs, concurrency });
+    for (const p of prepared) {
+      if (p.forfeit) console.error(`  BROKEN  ${p.team.name}: ${p.forfeit} (${p.detail ?? 'no detail'})`);
+    }
+    const { forfeits, languages, repoDirs } = forfeitsAndLanguagesFrom(prepared);
+    const preparedTeams = applyLanguages(teams, languages);
 
     const result = await runTournament({
-      teams,
+      teams: preparedTeams,
       outputDir: opts.output,
       provider,
       rng,
-      resolveRepoDir: (team) => checkoutRepo(team, workDir),
-      concurrency: opts.concurrency ?? matchConcurrency(os.cpus().length),
+      resolveRepoDir: (team) => repoDirs.get(team.name) ?? '',
+      preparedForfeits: forfeits,
+      concurrency,
       thinkBudgetMs: opts.thinkMs,
       botPort: opts.port,
       healthGraceMs: opts.healthGraceMs,
       minBracketSlots: opts.minBracketSlots,
+      bundlePath: opts.bundle,
+      provenance: {
+        seed: opts.seed ?? null,
+        think_budget_ms: opts.thinkMs,
+        concurrency,
+        lock_file: opts.lock ?? null,
+        lock_file_sha256_16: lockHash ?? null,
+      },
     });
 
     console.log(`Played ${result.matches.length} matches. Standings:`);
     for (const entry of result.summary.standings) {
       console.log(`  ${entry.rank}. ${entry.team.name} (${entry.match_wins}-${entry.match_losses} matches)`);
     }
+
+    if (opts.uploadR2) {
+      const creds = r2CredentialsFromEnv();
+      if (!creds) {
+        console.error('--upload-r2 given but R2_ACCOUNT_ID/R2_ACCESS_KEY_ID/R2_SECRET_ACCESS_KEY/R2_BUCKET are not all set.');
+        process.exitCode = 1;
+        return;
+      }
+      const key = bundleObjectKey();
+      await uploadToR2(creds, key, JSON.stringify(result.bundle));
+      const url = await presignGetUrl(creds, key);
+      console.log(`Uploaded bundle to R2. Presigned GET URL (valid 7 days):\n${url}`);
+    }
   });
 
 program
   .command('validate')
   .description('Pull all -> build -> smoke game for every team in the roster; reports readiness')
-  .requiredOption('--roster <path>', 'CSV of team name,repo url')
+  .requiredOption('--roster <source>', 'CSV path, JSON path, or https URL')
   .option('--work-dir <dir>', 'directory to check out team repos into', '.c4-checkouts')
   .option('--port <n>', 'container port the bot listens on', (v) => Number(v), 8000)
   .option('--health-grace-ms <n>', 'off-clock startup health-check grace', (v) => Number(v), 30_000)
+  .option('--concurrency <n>', 'bounded concurrency for validation (default: same as match concurrency)', (v) => Number(v))
+  .option('--json', 'print machine-readable JSON results to stdout instead of a human summary', false)
   .action(async (opts) => {
     const teams = await loadRoster(opts.roster);
     const provider = makeProvider();
     const workDir = path.resolve(opts.workDir);
+    const concurrency = opts.concurrency ?? matchConcurrency(os.cpus().length);
 
-    const results = await validateAll(teams, {
+    const results = await validateAllBounded(teams, {
       provider,
       resolveRepoDir: (team) => checkoutRepo(team, workDir),
       botPort: opts.port,
       healthGraceMs: opts.healthGraceMs,
-    });
+    }, concurrency);
 
-    let failures = 0;
-    for (const r of results) {
-      console.log(`${r.ok ? 'OK  ' : 'FAIL'}  ${r.team.name}: ${r.detail}`);
-      if (!r.ok) failures++;
+    if (opts.json) {
+      console.log(JSON.stringify(results, null, 2));
+    } else {
+      let failures = 0;
+      for (const r of results) {
+        console.error(`${r.ok ? 'OK  ' : 'FAIL'}  ${r.team}: ${r.detail}`);
+        if (!r.ok) failures++;
+      }
+      if (failures > 0) {
+        console.error(`${failures}/${results.length} teams failed validation.`);
+      }
     }
-    if (failures > 0) {
-      console.error(`${failures}/${results.length} teams failed validation.`);
-      process.exitCode = 1;
-    }
+    if (results.some((r) => !r.ok)) process.exitCode = 1;
   });
+
+/** `validate --json` shape per EVENT_PLAN.md: `[{ team, repo_url, commit, ok, stage, detail, ms }]`. Wraps validate.ts's ValidateTeamResult (which is keyed on the internal Team, not this wire shape) with bounded concurrency and timing. */
+interface ValidateJsonResult {
+  team: string;
+  repo_url: string;
+  commit: string | null;
+  ok: boolean;
+  stage: 'checkout' | 'build' | 'health' | 'smoke';
+  detail: string;
+  ms: number;
+}
+
+function inferStage(detail: string): ValidateJsonResult['stage'] {
+  if (detail.startsWith('checkout failed')) return 'checkout';
+  if (detail.includes('/health')) return 'health';
+  if (detail.startsWith('build/start failed')) return 'build';
+  return 'smoke';
+}
+
+async function validateAllBounded(
+  teams: Team[],
+  options: ValidateOptions,
+  concurrency: number,
+): Promise<ValidateJsonResult[]> {
+  const { runWithConcurrency } = await import('./scheduler.js');
+  const jobs = teams.map((team) => async (): Promise<ValidateJsonResult> => {
+    const start = Date.now();
+    const [result]: ValidateTeamResult[] = await validateAll([team], options);
+    return {
+      team: team.name,
+      repo_url: team.repoUrl,
+      commit: null, // validate.ts's `latest` checkout path doesn't pin a commit; use `run-tournament --lock` output for the frozen commit.
+      ok: result.ok,
+      stage: inferStage(result.detail),
+      detail: result.detail,
+      ms: Date.now() - start,
+    };
+  });
+  return runWithConcurrency(jobs, Math.max(1, concurrency));
+}
 
 program
   .command('run-match')
@@ -112,7 +247,7 @@ program
   .requiredOption('--output <dir>', 'directory to write the game-record JSON file')
   .option('--work-dir <dir>', 'directory to check out team repos into', '.c4-checkouts')
   .option('--seed <n>', 'RNG seed for coin flips', (v) => Number(v))
-  .option('--think-ms <n>', 'per-player, per-game think budget in ms', (v) => Number(v), 10_000)
+  .option('--think-ms <n>', 'per-player, per-game think budget in ms', (v) => Number(v), THINK_BUDGET_MS)
   .option('--port <n>', 'container port the bot listens on', (v) => Number(v), 8000)
   .option('--health-grace-ms <n>', 'off-clock startup health-check grace', (v) => Number(v), 30_000)
   .action(async (opts) => {
@@ -122,11 +257,20 @@ program
     const provider = makeProvider();
     const workDir = path.resolve(opts.workDir);
 
+    // A single ad hoc match still resolves + checks out each repo exactly
+    // once (no lock/freeze needed for a one-off debugging run): resolve
+    // the current default-branch commit implicitly, then check it out.
+    const { resolveDefaultBranchCommit } = await import('./git.js');
+    const [repoDirA, repoDirB] = await Promise.all([
+      resolveDefaultBranchCommit(teamA.repoUrl).then((commit) => checkoutRepoAtCommit(teamA, commit, workDir)),
+      resolveDefaultBranchCommit(teamB.repoUrl).then((commit) => checkoutRepoAtCommit(teamB, commit, workDir)),
+    ]);
+
     const record = await orchestrateMatch({
       matchId: `match-${Date.now()}`,
       phase: 'roundrobin',
       teams: [teamA, teamB],
-      repoDirs: [await checkoutRepo(teamA, workDir), await checkoutRepo(teamB, workDir)],
+      repoDirs: [repoDirA, repoDirB],
       provider,
       rng,
       thinkBudgetMs: opts.thinkMs,
@@ -136,7 +280,11 @@ program
 
     const filePath = await writeMatchRecord(opts.output, record);
     console.log(`Wrote ${filePath}`);
-    console.log(`Winner: ${record.teams[record.result.winner_team].name} (${record.result.games_won.join('-')})`);
+    if (record.result.winner_team === null) {
+      console.log('Double forfeit: no winner.');
+    } else {
+      console.log(`Winner: ${record.teams[record.result.winner_team].name} (${record.result.games_won.join('-')})`);
+    }
   });
 
 program.parseAsync(process.argv).catch((err) => {

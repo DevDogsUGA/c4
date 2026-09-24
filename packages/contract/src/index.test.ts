@@ -221,6 +221,41 @@ describe('game-record and match-record round trip', () => {
     },
   };
 
+  const sampleForfeitMatch: MatchRecord = {
+    match_id: 'rr-008',
+    phase: 'roundrobin',
+    teams: [
+      { name: 'Team Rocket', repo_url: 'https://github.com/example/team-rocket', members: ['Ash'], language: 'python' },
+      { name: 'Bit Flippers', repo_url: 'https://github.com/example/bit-flippers' },
+    ],
+    games: [],
+    result: {
+      winner_team: 0,
+      games_won: [0, 0],
+      reason: 'forfeit',
+      forfeits: [{ team: 1, reason: 'build_failed' }],
+    },
+  };
+
+  const sampleDoubleForfeitMatch: MatchRecord = {
+    match_id: 'rr-009',
+    phase: 'roundrobin',
+    teams: [
+      { name: 'Team Rocket', repo_url: 'https://github.com/example/team-rocket' },
+      { name: 'Bit Flippers', repo_url: 'https://github.com/example/bit-flippers' },
+    ],
+    games: [],
+    result: {
+      winner_team: null,
+      games_won: [0, 0],
+      reason: 'forfeit',
+      forfeits: [
+        { team: 0, reason: 'checkout_failed' },
+        { team: 1, reason: 'startup_timeout' },
+      ],
+    },
+  };
+
   it('parses a hand-written sample match record with no data loss', () => {
     const result = MatchRecordSchema.safeParse(sampleMatch);
     expect(result.success).toBe(true);
@@ -243,17 +278,132 @@ describe('game-record and match-record round trip', () => {
     expect(MatchRecordSchema.safeParse(broken).success).toBe(false);
   });
 
-  it('rejects a forfeit match result missing forfeit_detail semantics gracefully (still requires reason field)', () => {
-    const broken: unknown = { ...sampleMatch.result, reason: 'forfeit' };
-    // forfeit_detail is optional in the schema even when reason is forfeit,
-    // so this should still succeed -- documenting that the schema does not
-    // enforce that cross-field invariant. Consumers must check it.
-    expect(MatchResultSchema.safeParse(broken).success).toBe(true);
-  });
-
   it('rejects a game record with a non-1-based game_number of 0', () => {
     const broken = { ...sampleMatch.games[0], game_number: 0 };
     expect(GameRecordSchema.safeParse(broken).success).toBe(false);
+  });
+
+  it('parses a single-forfeit match record (team + members/language) with no data loss', () => {
+    const result = MatchRecordSchema.safeParse(sampleForfeitMatch);
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data).toEqual(sampleForfeitMatch);
+  });
+
+  it('parses a double-forfeit match record (null winner_team, two forfeits) with no data loss', () => {
+    const result = MatchRecordSchema.safeParse(sampleDoubleForfeitMatch);
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data).toEqual(sampleDoubleForfeitMatch);
+  });
+});
+
+describe('MatchResultSchema superRefine invariants', () => {
+  const base = { games_won: [0, 0] as [number, number] };
+
+  it('requires forfeits to be present iff reason is forfeit', () => {
+    expect(
+      MatchResultSchema.safeParse({ ...base, winner_team: 0, reason: 'forfeit' }).success,
+    ).toBe(false);
+    expect(
+      MatchResultSchema.safeParse({
+        ...base,
+        winner_team: 0,
+        reason: 'played',
+        forfeits: [{ team: 1, reason: 'build_failed' }],
+      }).success,
+    ).toBe(false);
+  });
+
+  it('rejects a double forfeit naming the same team slot twice', () => {
+    expect(
+      MatchResultSchema.safeParse({
+        ...base,
+        winner_team: null,
+        reason: 'forfeit',
+        forfeits: [
+          { team: 0, reason: 'build_failed' },
+          { team: 0, reason: 'startup_timeout' },
+        ],
+      }).success,
+    ).toBe(false);
+  });
+
+  it('requires winner_team to be null iff both teams forfeited', () => {
+    expect(
+      MatchResultSchema.safeParse({
+        ...base,
+        winner_team: 0,
+        reason: 'forfeit',
+        forfeits: [
+          { team: 0, reason: 'build_failed' },
+          { team: 1, reason: 'startup_timeout' },
+        ],
+      }).success,
+    ).toBe(false);
+    expect(
+      MatchResultSchema.safeParse({
+        ...base,
+        winner_team: null,
+        reason: 'forfeit',
+        forfeits: [{ team: 1, reason: 'build_failed' }],
+      }).success,
+    ).toBe(false);
+  });
+
+  it('rejects a match result where the forfeiting team is recorded as the winner', () => {
+    expect(
+      MatchResultSchema.safeParse({
+        ...base,
+        winner_team: 1,
+        reason: 'forfeit',
+        forfeits: [{ team: 1, reason: 'build_failed' }],
+      }).success,
+    ).toBe(false);
+  });
+
+  it('accepts a valid single forfeit and a valid double forfeit', () => {
+    expect(
+      MatchResultSchema.safeParse({
+        ...base,
+        winner_team: 0,
+        reason: 'forfeit',
+        forfeits: [{ team: 1, reason: 'checkout_failed' }],
+      }).success,
+    ).toBe(true);
+    expect(
+      MatchResultSchema.safeParse({
+        ...base,
+        winner_team: null,
+        reason: 'forfeit',
+        forfeits: [
+          { team: 0, reason: 'checkout_failed' },
+          { team: 1, reason: 'startup_timeout' },
+        ],
+      }).success,
+    ).toBe(true);
+  });
+});
+
+describe('TournamentBundleSchema', () => {
+  it('parses a minimal valid bundle', async () => {
+    const { TournamentBundleSchema } = await import('./index.js');
+    const result = TournamentBundleSchema.safeParse({
+      format: 'c4-tournament-bundle',
+      version: 1,
+      summary: { standings: [], bracket: [], generated_at: '2026-09-18T12:00:00.000Z' },
+      matches: [],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects the wrong format literal', async () => {
+    const { TournamentBundleSchema } = await import('./index.js');
+    const result = TournamentBundleSchema.safeParse({
+      format: 'something-else',
+      version: 1,
+      summary: { standings: [], bracket: [], generated_at: '2026-09-18T12:00:00.000Z' },
+      matches: [],
+    });
+    expect(result.success).toBe(false);
   });
 });
 
